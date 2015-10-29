@@ -14,7 +14,7 @@ IMAGES_DIR = '../doc/images/'
 
 def read_content( fpath , name ) :
 	data = { 'name' : name , 'solutions' : [] }
-	sol = { 'score' : [] , 'iterations' : 0 }
+	sol = { 'score' : [] , 'iterations' : 0 , 'time' : 0 }
 	print fpath
 	with open( fpath , 'r' ) as f :
 		lines = [ l[ :-1 ] for l in f.readlines() ]
@@ -30,6 +30,9 @@ def read_content( fpath , name ) :
 					elif line.startswith( 'NUM IT' ) :
 						iterations = int( line.split( ' = ' )[ -1 ] )
 						solution[ 'iterations' ] = iterations
+					elif line.startswith( 'TIME' ) :
+						time = float( line.split( ' = ' )[ -1 ] )
+						solution[ 'time' ] = time
 					idx += 1
 					if idx >= len( lines ) or \
 						lines[ idx ].startswith( SOL_DELIMITER ) or \
@@ -51,6 +54,10 @@ def read_content( fpath , name ) :
 	max_iterations = max( all_it )
 	avg_iterations = statistics.mean( all_it )
 	stdev_iterations = statistics.stdev( all_it )
+	all_times = [ s[ 'time' ] for s in data[ 'solutions' ] ]
+	max_time = max( all_times )
+	avg_time = statistics.mean( all_times )
+	stdev_time = statistics.stdev( all_times )
 	print name.upper()
 	print "MAX SCORE = %s" % max_sc
 	print "TOTAL NUM SOLUTIONS = %s" % total_sols
@@ -63,7 +70,10 @@ def read_content( fpath , name ) :
 	print "MAX NUM ITERATIONS = %s" % max_iterations
 	print "AVG NUM ITERATIONS = %s" % avg_iterations
 	print "STDEV NUM ITERATIONS = %s" % stdev_iterations
-	print "%.3f & %.3f +/- %.2f & %.3f +/- %.2f & %.2f & %.2f +/- %.2f" % ( max_sc , avg_init_sc , std_init_sc , avg_best_sc , std_best_sc , perc_sols , avg_iterations , stdev_iterations )
+	print "MAX CPU TIME = %s" % max_time
+	print "AVG CPU TIME = %s" % avg_time
+	print "STDEV CPU TIME = %s" % stdev_time
+	print "%.3f & %.3f $\pm$ %.2f & %.3f $\pm$ %.2f & %.2f & %.2f $\pm$ %.2f" % ( max_sc , avg_init_sc , std_init_sc , avg_best_sc , std_best_sc , perc_sols , avg_iterations , stdev_iterations )
 	max_length = max( [ len( s[ 'score' ] ) for s in data[ 'solutions' ] ] )
 	avg_scores = []
 	for i in xrange( max_length ) :
@@ -87,6 +97,7 @@ def addCurve( x , y , col , lbl ) :
 def addPoint( x , y , col ) :
 	plot( x , y , col+'o' )
 
+# TODO
 def makePlot( directory , dataname ) :
 	networkdata = []
 	for i in xrange( len( types ) ) :
