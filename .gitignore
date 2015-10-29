@@ -1,3 +1,11 @@
+# Python compiles
+*.pyc
+
+# Datasets exclude files
+*_new.*
+*_counters.*
+results/*.csv
+
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof
