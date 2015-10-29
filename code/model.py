@@ -2,6 +2,7 @@ from copy import deepcopy as copy
 from utils import *
 from data import Data
 from math import log
+from bitarray import bitarray
 
 class Model :
 	def __init__( self , dataobj = None , modelfile = None ) :
@@ -16,6 +17,7 @@ class Model :
 		self.sizevalues = dict( [ ( field , {} ) for field in self.data.fields ] )
 		self.bicvalues = dict( [ ( field , {} ) for field in self.data.fields ] )
 		self.bestparents = dict( [ ( field , [] ) for field in self.data.fields ] )
+		self.bitsets = dict( [ ( field , {} ) for field in self.data.fields ] )
 		self.precalculate_scores()
 	
 	def precalculate_scores( self ) :
@@ -27,37 +29,68 @@ class Model :
 					field , par , sc = line.split()
 					if par == '_' : par = ''
 					self.bicvalues[ field ][ par ] = float( sc )
-					self.bestparents[ field ].append( par.split( ',' ) )
-		else :
-			print "Pre-calculating all scores from model"
-			self.subconj = []
-			for i in xrange( 0 , MAX_NUM_PARENTS + 1 ) :
-				self.subconj.extend( [ list( x ) for x in itertools.combinations( self.data.fields , i ) ] )
-			for field in self.data.fields :
-				for sub in self.subconj :
-					if field in sub : continue
-					self.bic_score( field , sub )
-			with open( score_file , 'w' ) as f :
-				for field in self.data.fields :
-					lstparents = [ ( self.bicvalues[ field ][ p ] , p ) for p in self.bicvalues[ field ] ]
-					lstparents.sort( reverse = True )
+					sp = par.split( ',' )
+					if sp[ 0 ] == '' : sp = []
+					prune = False
 					''' START POINTER FUNCTION '''
 					append = self.bestparents[ field ].append
 					''' END POINTER FUNCTION '''
-					for ( sc , p ) in lstparents :
+					for i in xrange( len( self.bestparents[ field ] ) ) :
+						par = self.bestparents[ field ][ i ]
+						if set( par ).issubset( sp ) :
+							prune = True
+							break
+					if not prune : append( sp )
+			for f1 in self.data.fields :
+				for f2 in self.data.fields :
+					if f1 == f2 : continue
+					lstpar = self.bestparents[ f1 ]
+					coinc = ''.join( [ str( int( f2 in s ) ) for s in lstpar ] )
+					self.bitsets[ f1 ][ f2 ] = bitarray( coinc )
+		else :
+			print "Pre-calculating all scores from model"
+			self.data.calculatecounters()
+			for field in self.data.fields :
+				for k in xrange( 0 , MAX_NUM_PARENTS + 1 ) :
+					options = [ f for f in self.data.fields if f != field ]
+					subconj = [ list( x ) for x in itertools.combinations( options , k ) ]
+					for sub in subconj : self.bic_score( field , sub )
+			for field in self.data.fields :
+				tmp = [ ( self.bicvalues[ field ][ p ] , p ) for p in self.bicvalues[ field ] ]
+				tmp.sort( reverse = True )
+				for i in xrange( tmp ) :
+					( sc , p ) = tmp[ i ]
+					prune = False
+					for j in xrange( i ) :
+						( old_sc , old_p ) = tmp[ j ]
+						if set( old_p ).issubset( p ) :
+							prune = True
+							break
+					if not prune : self.bestparents[ field ].append( p )
+			for f1 in self.data.fields :
+				for f2 in self.data.fields :
+					if f1 == f2 : continue
+					lstpar = self.bestparents[ f1 ]
+					coinc = ''.join( [ str( int( f2 in s ) ) for s in lstpar ] )
+					self.bitsets[ f1 ][ f2 ] = bitarray( coinc )
+			with open( score_file , 'w' ) as f :
+				for field in self.data.fields :
+					lstparents = self.bestparents[ field ]
+					for p in lstparents :
 						par = copy( p )
 						if not par : par = '_'
 						f.write( "%s %s %s\n" % ( field , par , self.bicvalues[ field ][ p ] ) )
-						append( p )
-
-	def loaddata( self , data ) :
-		self.data = copy( data )
-
-	def addtrainingset( self , testfile , ommit = [] ) :
-		print "Adding test rows from %s" % testfile
-		testdata = Data( testfile , ommit )
-		self.testdata = testdata.rows
-		print "TEST ROWS = %s" % len( self.testdata )
+	
+	def find_parents( self , field , options ) :
+		rem = [ f for f in self.data.fields if ( f not in options ) and f != field ]
+		le = len( self.bestparents[ field ] )
+		full = bitarray( '1' * le )
+		for f in rem :
+			aux = copy( self.bitsets[ field ][ f ] )
+			aux.invert()
+			full &= aux
+		pos = full.index( True )
+		return self.bestparents[ field ][ pos ]
 
 	def loadmodel( self , modelfile ) :
 		self.modelfile = modelfile
@@ -95,28 +128,6 @@ class Model :
 			xi = [ field ]
 			pa_xi = self.network[ field ][ 'parents' ]
 			calc_probs( xi , pa_xi )
-
-	# DATA LOG_LIKELIHOOD
-	def testmodel( self ) :
-		print "Testing model with test data"
-		loglikelihood = 0.0
-		''' START POINTER FUNCTIONS '''
-		lstfields = self.data.fields
-		cond_prob = self.conditional_prob
-		''' END POINTER FUNCTIONS '''
-		for row in self.testdata :
-			for field in lstfields :
-				xi = { field : row[ field ] }
-				pa_xi = dict( [ ( pai , row[ pai ] ) for pai in self.network[ field ][ 'parents' ] ] )
-				prob = cond_prob( xi , pa_xi )
-				loglikelihood += log( prob )
-		print "Data Log-Likelihood = %s" % loglikelihood
-		return loglikelihood
-
-	def loadAndTestModel( self , modelfile ) :
-		self.loadmodel( modelfile )
-		self.trainmodel()
-		return self.testmodel()
 
 	def calculateprobabilities( self , xsetfield , ysetfield ) :
 		#print "Calculating P( %s | %s )" % ( xsetfield , ysetfield )

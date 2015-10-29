@@ -131,7 +131,6 @@ class Data :
 		if F not in self.counters : self.counters[ F ] = 0.0
 		return self.counters[ F ]
 
-	# TODO: Change from += to string join
 	def hashed( self , cond ) :
 		resp = ''
 		if not cond : return resp
