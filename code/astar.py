@@ -14,7 +14,6 @@ class BNBuilder :
 		self.dataset_name = os.path.splitext( os.path.basename( source ) )[ 0 ]
 		self.data = Data( source , savefilter , ommit , discretize , outfile )
 		score_file = "%s/%s%s" % ( os.path.dirname( self.data.source ) , os.path.splitext( os.path.basename( self.data.source ) )[ 0 ] , '_scores.txt' )
-		if not os.path.isfile( score_file ) : self.data.calculatecounters()
 		self.model = Model( dataobj = self.data )
 		self.best_parents = dict( [ ( field , {} ) for field in self.data.fields ] )
 
@@ -74,7 +73,6 @@ class BNBuilder :
 		''' END POINTER FUNCTIONS '''
 		setnetwork( self.clean_graph() , train = False )
 		self.base_score = self.model.score()
-		self.reduce_bicscores()
 		print "Learning bayesian network from dataset %s" % self.data.source
 		for T in xrange( NUM_INITIAL_SOLUTIONS ) :
 			print " ============ INITIAL SOLUTION #%s ============" % (T+1)
@@ -362,18 +360,6 @@ class BNBuilder :
 					else :
 						graph[ edg[ 0 ] ][ 'childs' ].append( ( child , weight - worst_weight ) )
 		return self.delete_weights( graph )
-
-	def reduce_bicscores( self ) :
-		graph = self.find_greedy_network( self.data.fields , all_options = True )
-		for field in self.data.fields :
-			lstparents = copy( self.model.bicvalues[ field ] )
-			bestparents = self.model.bestparents[ field ]
-			for p in lstparents :
-				par = p.split( ',' )
-				if len( par ) == 1 and par[ 0 ] == '' : par = []
-				if par in bestparents : continue
-				if set( par ).issubset( graph[ field ][ 'parents' ] ) : continue
-				self.model.bicvalues[ field ].pop( p , None )
 
 	def weighted_solution( self ) :
 		print "Building graph with best parents for each field"
