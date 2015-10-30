@@ -19,7 +19,7 @@ class Model :
 		self.bestparents = dict( [ ( field , [] ) for field in self.data.fields ] )
 		self.bitsets = dict( [ ( field , {} ) for field in self.data.fields ] )
 		self.precalculate_scores()
-	
+
 	def precalculate_scores( self ) :
 		score_file = "%s/%s%s" % ( os.path.dirname( self.data.source ) , os.path.splitext( os.path.basename( self.data.source ) )[ 0 ] , '_scores.txt' )
 		if os.path.isfile( score_file ) :
@@ -32,15 +32,7 @@ class Model :
 					sp = par.split( ',' )
 					if sp[ 0 ] == '' : sp = []
 					prune = False
-					''' START POINTER FUNCTION '''
-					append = self.bestparents[ field ].append
-					''' END POINTER FUNCTION '''
-					for i in xrange( len( self.bestparents[ field ] ) ) :
-						par = self.bestparents[ field ][ i ]
-						if set( par ).issubset( sp ) :
-							prune = True
-							break
-					if not prune : append( sp )
+					self.bestparents[ field ].append( sp )
 			for f1 in self.data.fields :
 				for f2 in self.data.fields :
 					if f1 == f2 : continue
@@ -55,32 +47,39 @@ class Model :
 					options = [ f for f in self.data.fields if f != field ]
 					subconj = [ list( x ) for x in itertools.combinations( options , k ) ]
 					for sub in subconj : self.bic_score( field , sub )
-			for field in self.data.fields :
-				tmp = [ ( self.bicvalues[ field ][ p ] , p ) for p in self.bicvalues[ field ] ]
-				tmp.sort( reverse = True )
-				for i in xrange( tmp ) :
-					( sc , p ) = tmp[ i ]
-					prune = False
+			self.data.deletecounters()
+			self.reduce_bicscores()
+			with open( score_file , 'w' ) as f :
+				for field in self.data.fields :
+					lstparents = self.bestparents[ field ]
+					for p in lstparents :
+						par = self.hashedarray( copy( p ) )
+						hp = copy( par )
+						if par == '' : hp = '_'
+						f.write( "%s %s %s\n" % ( field , hp , self.bicvalues[ field ][ par ] ) )
+
+	def reduce_bicscores( self ) :
+		for field in self.data.fields :
+			tmp = [ ( self.bicvalues[ field ][ p ] , self.decodearray( p ) ) for p in self.bicvalues[ field ] ]
+			tmp.sort( reverse = True )
+			for i in xrange( len( tmp ) ) :
+				( sc , p ) = tmp[ i ]
+				prune = False
+				if not set( p ).issubset( tmp[ 0 ][ 1 ] ) :
 					for j in xrange( i ) :
 						( old_sc , old_p ) = tmp[ j ]
 						if set( old_p ).issubset( p ) :
 							prune = True
 							break
-					if not prune : self.bestparents[ field ].append( p )
-			for f1 in self.data.fields :
-				for f2 in self.data.fields :
-					if f1 == f2 : continue
-					lstpar = self.bestparents[ f1 ]
-					coinc = ''.join( [ str( int( f2 in s ) ) for s in lstpar ] )
-					self.bitsets[ f1 ][ f2 ] = bitarray( coinc )
-			with open( score_file , 'w' ) as f :
-				for field in self.data.fields :
-					lstparents = self.bestparents[ field ]
-					for p in lstparents :
-						par = copy( p )
-						if not par : par = '_'
-						f.write( "%s %s %s\n" % ( field , par , self.bicvalues[ field ][ p ] ) )
-	
+				if not prune : self.bestparents[ field ].append( p )
+				else : self.bicvalues[ field ].pop( self.hashedarray( p ) , None )
+		for f1 in self.data.fields :
+			for f2 in self.data.fields :
+				if f1 == f2 : continue
+				lstpar = self.bestparents[ f1 ]
+				coinc = ''.join( [ str( int( f2 in s ) ) for s in lstpar ] )
+				self.bitsets[ f1 ][ f2 ] = bitarray( coinc )	
+
 	def find_parents( self , field , options ) :
 		rem = [ f for f in self.data.fields if ( f not in options ) and f != field ]
 		le = len( self.bestparents[ field ] )
@@ -225,3 +224,8 @@ class Model :
 	def hashedarray( self , setfields ) :
 		setfields.sort()
 		return ','.join( setfields )
+
+	def decodearray( self , st ) :
+		par = st.split( ',' )
+		if len( par ) == 1 and par[ 0 ] == '' : par = []
+		return par
