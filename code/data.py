@@ -125,6 +125,9 @@ class Data :
 			with open( counter_file , 'w' ) as f :
 				for ( key , value ) in self.counters.iteritems() :
 					f.write( "%s %s\n" % ( key , value ) )
+	
+	def deletecounters( self ) :
+		self.counters = None
 
 	def getcount( self , fields ) :
 		F = self.hashed( fields )
