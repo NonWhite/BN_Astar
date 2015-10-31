@@ -3,6 +3,8 @@ from random import randint
 from copy import deepcopy as copy
 from data import Data
 from model import Model
+from time import clock
+from Queue import PriorityQueue as pqueue
 import os.path
 import sys
 
@@ -11,22 +13,13 @@ class BNBuilder :
 		outfile = RESULTS_DIR + os.path.basename( source )
 		self.dataset_name = os.path.splitext( os.path.basename( source ) )[ 0 ]
 		self.data = Data( source , savefilter , ommit , discretize , outfile )
-		self.data.calculatecounters()
+		score_file = "%s/%s%s" % ( os.path.dirname( self.data.source ) , os.path.splitext( os.path.basename( self.data.source ) )[ 0 ] , '_scores.txt' )
 		self.model = Model( dataobj = self.data )
 		self.best_parents = dict( [ ( field , {} ) for field in self.data.fields ] )
 
-	def addTrainingSet( self , testfile ) :
-		self.model.addtrainingset( testfile , self.data.ommitedfields )
-
-	def loadAndTestModel( self , modelfile ) :
-		self.model.loaddata( self.data )
-		self.model.loadmodel( modelfile )
-		self.model.trainmodel()
-		return self.model.testmodel()
-
 	def buildNetwork( self , outfilepath = 'out.txt' ) :
 		self.out = open( outfilepath , 'w' )
-		network = self.greedySearch()
+		network = self.solver()
 		self.out.write( "BEST NETWORK:\n" )
 		self.printnetwork( network , printrelations = True )
 		#self.saveBestNetwork( network )
@@ -39,13 +32,88 @@ class BNBuilder :
 				f.write( "%s:%s\n" % ( field , ', '.join( network[ field ][ 'childs' ] ) ) )
 		self.modelfile = best_file
 
+	def aStar( self ) :
+		''' START FUNCTION POINTERS '''
+		hashed = self.model.hashedarray
+		get_score = self.get_cost
+		set_score = self.set_cost
+		heuri = self.heuristic
+		get_total = self.get_F
+		network = self.find_greedy_network
+		is_goal = self.is_goal
+		best_parents = self.find_best_parents
+		write = self.out.write
+		''' END FUNCTION POINTERS '''
+		init_time = clock()
+		self.init_astar()
+		visited = {}
+		q = pqueue()
+		start = []
+		set_score( start , 0 )
+		visited[ hashed( start ) ] = True
+		q.put( ( get_total( start ) , start ) )
+		while not q.empty() :
+			F , U = q.get()
+			if is_goal( U ) :
+				cpu_time = clock() - init_time
+				write( "ORDER = %s\n" % ','.join( U ) )
+				write( "SCORE = %s\n" % get_score( U ) )
+				write( "TIME = %s\n" % cpu_time )
+				return network( U )
+			if compare( get_total( U ) , F ) < 0 : continue
+			visited[ hashed( U ) ] = True
+			for X in self.data.fields :
+				if X in U : continue
+				new_U = copy( U )
+				new_U.append( X )
+				hu = hashed( new_U )
+				g = get_score( U ) - self.model.bic_score( X , best_parents( X , U ) )
+				if hu in visited : continue
+				if hu not in self.g or compare( g , get_score( new_U ) ) < 0 :
+					q.put( ( g + heuri( new_U ) , new_U ) )
+					set_score( new_U , g )
+		return None
+
+	def is_goal( self , lst ) :
+		return len( lst ) == len( self.data.fields )
+
+	def init_astar( self ) :
+		self.g = {}
+		self.h = {}
+
+	def get_cost( self , lst_vars ) :
+		hlst = self.model.hashedarray( lst_vars )
+		if hlst in self.g : return self.g[ hlst ]
+		cost = self.get_cost( lst_vars[ :-1 ] )
+		parents = self.find_best_parents( lst_vars[ -1 ] , lst_vars[ :-1 ] )
+		cost -= self.model.bic_score( lst_vars[ -1 ] , parents )
+		print "COST( %s ) = %s" % ( lst_vars , cost )
+		return cost
+
+	def set_cost( self , lst_vars , sc ) :
+		hlst = self.model.hashedarray( lst_vars )
+		self.g[ hlst ] = sc
+
+	def get_F( self , lst_vars ) :
+		g = self.get_cost( lst_vars )
+		h = self.heuristic( lst_vars )
+		return g + h
+
+	def simple( self , lst_vars ) :
+		hlst = self.model.hashedarray( lst_vars )
+		if hlst in self.h : return self.h[ hlst ]
+		h = 0
+		for field in self.data.fields :
+			if field in lst_vars : continue
+			options = copy( self.data.fields )
+			options.remove( field )
+			par = self.find_best_parents( field , options )
+			h -= self.model.bic_score( field , par )
+		#print "HEURISTIC( %s ) = %s" % ( lst_vars , h )
+		self.h[ hlst ] = h
+		return h
+
 	def greedySearch( self ) :
-		#self.model.initialize()
-		self.model.setnetwork( self.clean_graph() , train = False )
-		self.base_score = self.model.score()
-		print "Learning bayesian network from dataset %s" % self.data.source
-		init_orders = self.initialize()
-		best_order = None
 		''' START POINTER FUNCTIONS '''
 		better_order = self.better_order
 		setnetwork = self.model.setnetwork
@@ -53,11 +121,17 @@ class BNBuilder :
 		printnetwork = self.printnetwork
 		write = self.out.write
 		''' END POINTER FUNCTIONS '''
-		for i in xrange( len( init_orders ) ) :
-			print " ============ INITIAL SOLUTION #%s ============" % (i+1)
-			write( " ============ INITIAL SOLUTION #%s ============\n" % (i+1) )
-			cur_order = copy( init_orders[ i ] )
+		setnetwork( self.clean_graph() , train = False )
+		self.base_score = self.model.score()
+		print "Learning bayesian network from dataset %s" % self.data.source
+		for T in xrange( NUM_INITIAL_SOLUTIONS ) :
+			print " ============ INITIAL SOLUTION #%s ============" % (T+1)
+			write( " ============ INITIAL SOLUTION #%s ============\n" % (T+1) )
+			init_time = clock()
+			init_order = self.initialize()
+			cur_order = copy( init_order )
 			print cur_order
+			best_order = None
 			num_iterations = NUM_GREEDY_ITERATIONS
 			for k in xrange( num_iterations ) :
 				#print " ====== Iteration #%s ====== " % (k+1)
@@ -78,7 +152,9 @@ class BNBuilder :
 					num_iterations = k + 1
 					printnetwork( self.model.network )
 					break
+			cpu_time = clock() - init_time
 			write( "NUM ITERATIONS = %s\n" % num_iterations )
+			write( "TIME = %s\n" % cpu_time )
 			if not best_order or better_order( cur_order , best_order ) :
 				best_order = copy( cur_order )
 		best_network = self.find_greedy_network( best_order )
@@ -96,10 +172,10 @@ class BNBuilder :
 
 	def better_order( self , order1 , order2 ) :
 		net_1 = self.find_greedy_network( order1 )
-		self.model.setnetwork( net_1 , train = True )
+		self.model.setnetwork( net_1 , train = False )
 		score1 = self.model.score()
 		net_2 = self.find_greedy_network( order2 )
-		self.model.setnetwork( net_2 , train = True )
+		self.model.setnetwork( net_2 , train = False )
 		score2 = self.model.score()
 		return self.isbetter( score1 , score2 )
 
@@ -140,7 +216,7 @@ class BNBuilder :
 		for i in xrange( len( order ) - 1 ) :
 			new_order = self.swap_fields( order , i , i + 1 )
 			network = find_greedy_network( new_order )
-			setnetwork( network , train = True )
+			setnetwork( network , train = False )
 			cur_score = networkscore()
 			if self.isbetter( cur_score , best_score ) :
 				best_score = copy( cur_score )
@@ -156,10 +232,7 @@ class BNBuilder :
 		# Verify if it has been already calculated
 		hash_parents = self.model.hashedarray( options )
 		if hash_parents in self.best_parents[ field ] : return self.best_parents[ field ][ hash_parents ]
-		lstparents = self.model.bestparents[ field ]
-		pos = [ idx for idx in xrange( len( lstparents ) ) if set( lstparents[ idx ] ).issubset( options ) ]
-		best = []
-		if pos : best = lstparents[ pos[ 0 ] ]
+		best = self.model.find_parents( field , options )
 		self.best_parents[ field ][ hash_parents ] = best
 		return best
 
@@ -184,27 +257,27 @@ class BNBuilder :
 	def worst_score_value( self ) :
 		return -INT_MAX
 
+	def setSolver( self , solver , params = {} ) :
+		if solver == 'greedy_search' :
+			self.solver = self.greedySearch
+			self.setInitialSolutionType( params[ 'initial_solution' ] )
+		elif solver == 'a_star' :
+			self.solver = self.aStar
+			self.setHeuristicFunction( params[ 'heuristic' ] )
+
 	def setInitialSolutionType( self , desc ) :
-		if desc == 'random' : self.initialize = self.random_solutions
-		elif desc == 'unweighted' : self.initialize = self.unweighted_solutions
-		elif desc == 'weighted' : self.initialize = self.weighted_solutions
+		if desc == 'random' : self.initialize = self.random_solution
+		elif desc == 'unweighted' : self.initialize = self.unweighted_solution
+		elif desc == 'weighted' : self.initialize = self.weighted_solution
+
+	def setHeuristicFunction( self , heuri ) :
+		if heuri == 'simple' : self.heuristic = self.simple
 
 	''' =========================== RANDOM SOLUTION APPROACH =========================== '''
-	def random_solutions( self ) :
-		solutions = []
-		''' START POINTER FUNCTIONS '''
-		setnetwork = self.model.setnetwork
-		find_greedy_network = self.find_greedy_network
-		append = solutions.append
-		lstfields = self.data.fields
-		''' END POINTER FUNCTIONS '''
-		for k in xrange( NUM_INITIAL_SOLUTIONS ) :
-			order = shuffle( lstfields )
-			network = find_greedy_network( order )
-			setnetwork( network , topo_order = order , train = False )
-			append( copy( self.model.topological ) )
-		return solutions
-	
+	def random_solution( self ) :
+		order = shuffle( self.data.fields )
+		return order
+
 	''' =========================== DFS APPROACH =========================== '''
 	def dfs( self , graph , node , unvisited , order ) :
 		unvisited.remove( node )
@@ -216,7 +289,7 @@ class BNBuilder :
 		for child in graph[ node ][ 'childs' ] :
 			if child not in unvisited : continue
 			dfs( graph , child , unvisited , order )
-	
+
 	def traverse_graph( self , graph ) :
 		''' START POINTER FUNCTIONS '''
 		dfs = self.dfs
@@ -232,21 +305,18 @@ class BNBuilder :
 			dfs( G , root , unvisited , order )
 		return order
 
-	def unweighted_solutions( self ) :
+	def unweighted_solution( self ) :
 		print "Building graph with best parents for each field"
 		greedy_graph = self.find_greedy_network( self.data.fields , all_options = True )
-		print "GREEDY GRAPH"
-		for f in self.data.fields : print "%s:%s" % ( f , greedy_graph[ f ][ 'parents' ] )
+		#print "GREEDY GRAPH"
+		#for f in self.data.fields : print "%s:%s" % ( f , greedy_graph[ f ][ 'parents' ] )
 		solutions = []
 		''' START POINTER FUNCTIONS '''
 		traverse = self.traverse_graph
 		append = solutions.append
 		''' END POINTER FUNCTIONS '''
-		for i in xrange( NUM_INITIAL_SOLUTIONS ) :
-			print " === Building network #%s === " % (i+1)
-			order = traverse( greedy_graph )
-			append( copy( order ) )
-		return solutions
+		order = traverse( greedy_graph )
+		return order
 
 	''' =========================== FAS APPROACH =========================== '''
 	def add_weights( self , graph ) :
@@ -263,7 +333,7 @@ class BNBuilder :
 				G[ field ][ 'parents' ].append( ( par , weight ) )
 				G[ par ][ 'childs' ].append( ( field , weight ) )
 		return G
-	
+
 	def delete_weights( self , graph ) :
 		G = self.clean_graph()
 		for field in self.data.fields :
@@ -271,7 +341,7 @@ class BNBuilder :
 				G[ field ][ 'childs' ].append( child )
 				G[ child ][ 'parents' ].append( field )
 		return G
-	
+
 	def get_edges( self , graph , cycle ) :
 		cycle = list( reversed( cycle ) )
 		edges = []
@@ -341,11 +411,11 @@ class BNBuilder :
 						graph[ edg[ 0 ] ][ 'childs' ].append( ( child , weight - worst_weight ) )
 		return self.delete_weights( graph )
 
-	def weighted_solutions( self ) :
+	def weighted_solution( self ) :
 		print "Building graph with best parents for each field"
 		greedy_graph = self.find_greedy_network( self.data.fields , all_options = True )
-		print "GREEDY GRAPH"
-		for f in self.data.fields : print "%s:%s" % ( f , greedy_graph[ f ][ 'parents' ] )
+		#print "GREEDY GRAPH"
+		#for f in self.data.fields : print "%s:%s" % ( f , greedy_graph[ f ][ 'parents' ] )
 		weighted_graph = self.add_weights( greedy_graph )
 		fas_graph = self.fas_solver( weighted_graph )
 		solutions = []
@@ -353,12 +423,8 @@ class BNBuilder :
 		append = solutions.append
 		lstfields = self.data.fields
 		''' END POINTER FUNCTIONS '''
-		for i in xrange( NUM_INITIAL_SOLUTIONS ) :
-			print " === Building order #%s === " % (i+1)
-			order = topological( fas_graph , lstfields )
-			if order in solutions : continue
-			append( copy( order ) )
-		return solutions
+		order = topological( fas_graph , lstfields )
+		return order
 
 if __name__ == "__main__" :
 	if len( sys.argv ) == 3 :
@@ -367,17 +433,31 @@ if __name__ == "__main__" :
 		else : ommit_fields = [ f.strip() for f in ommit_fields.split( ',' ) ]
 		builder = BNBuilder( dataset_file , savefilter = True , discretize = True , ommit = ommit_fields )
 		out_file = "%s%s_%%s.txt" % ( RESULTS_DIR , builder.dataset_name )
+		
+		print "========== RUNNING WITH SIMPLE HEURISTIC =========="
+		builder.setSolver( 'a_star' , { 'heuristic' : 'simple' } )
+		builder.buildNetwork( outfilepath = out_file % 'simple' )
+
+		'''
+		print "========== RUNNING WITH A Star 2 =========="
+		builder.setSolver( 'a_star' , { 'heuristic' : 'second' } )
+		builder.buildNetwork( outfilepath = out_file % 'astar2' )
+
+		print "========== RUNNING WITH A Star 3 =========="
+		builder.setSolver( 'a_star' , { 'heuristic' : 'third' } )
+		builder.buildNetwork( outfilepath = out_file % 'astar3' )
 
 		print "========== RUNNING WITH RANDOM PERMUTATION =========="
-		builder.setInitialSolutionType( 'random' )
+		builder.setSolver( 'greedy_search' , { 'initial_solution' : 'random' } )
 		builder.buildNetwork( outfilepath = out_file % 'random' )
 	
 		print "========== RUNNING WITH DFS =========="
-		builder.setInitialSolutionType( 'unweighted' )
+		builder.setSolver( 'greedy_search' , { 'initial_solution' : 'unweighted' } )
 		builder.buildNetwork( outfilepath = out_file % 'unweighted' )
 		
 		print "========== RUNNING WITH FAS APPROXIMATION =========="
-		builder.setInitialSolutionType( 'weighted' )
+		builder.setSolver( 'greedy_search' , { 'initial_solution' : 'weighted' } )
 		builder.buildNetwork( outfilepath = out_file % 'weighted' )
+		'''
 	else :
 		print "Usage: pypy %s <csv_file> <ommit_fields> <results_file>" % sys.argv[ 0 ]
