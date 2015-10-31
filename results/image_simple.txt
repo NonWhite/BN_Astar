@@ -1,0 +1,22 @@
+BEST NETWORK:
+SCORE = -13055.7366649
+A: T
+B: F,G,H,J,O,P,R,S,T
+C: 
+D: 
+E: F,H
+F: G,H,J,L,O
+G: I
+H: I,J
+I: P
+J: K,L,M,Q,T
+K: M,R
+L: O,Q
+M: 
+N: 
+O: P,S
+P: R,S
+Q: 
+R: 
+S: 
+T: 

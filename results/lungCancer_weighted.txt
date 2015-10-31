@@ -1,0 +1,71 @@
+ ============ INITIAL SOLUTION #1 ============
+SCORE = -715.821004755
+NUM ITERATIONS = 1
+TIME = 0.940199
+ ============ INITIAL SOLUTION #2 ============
+SCORE = -715.821004755
+SCORE = -715.225183146
+SCORE = -714.845743819
+SCORE = -714.564655438
+SCORE = -714.564655438
+NUM ITERATIONS = 5
+TIME = 1.591613
+BEST NETWORK:
+SCORE = -714.564655438
+A: 
+B: 
+C: 
+D: 
+E: X,a
+F: 
+G: 
+H: 
+I: X,V
+J: 
+K: 
+L: 
+M: x
+N: EE,Y
+O: R
+P: 
+Q: a,Z
+R: 
+S: DD
+T: p
+U: E,T,A
+V: W,O,Q
+W: 
+X: q,i
+Y: u
+Z: k,P
+a: m,e
+b: 
+c: 
+d: M
+e: T,M
+f: 
+g: f,h
+h: 
+i: 
+j: q,Y
+k: z
+l: N,m,j,i
+m: t,k
+n: DD
+o: r
+p: 
+q: K,h,p
+r: 
+s: 
+t: 
+u: 
+v: 
+w: 
+x: H
+y: BB
+z: 
+AA: A,BB
+BB: 
+CC: E,EE,H,K
+DD: 
+EE: I
