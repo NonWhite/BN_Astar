@@ -1,0 +1,25 @@
+ORDER = A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T
+SCORE = 174.092543401
+TIME = 42.395634
+BEST NETWORK:
+SCORE = -188.788161097
+A: B,C,D,E,F,G,H,I,L
+B: 
+C: 
+D: 
+E: K,M,N,P,Q
+F: 
+G: 
+H: 
+I: J,L
+J: 
+K: 
+L: 
+M: R
+N: O,P,Q,S,T
+O: 
+P: 
+Q: 
+R: 
+S: 
+T: 
