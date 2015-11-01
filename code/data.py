@@ -56,10 +56,18 @@ class Data :
 	def analyzeFields( self ) :
 		self.fieldtypes = dict( [ ( field , '' ) for field in self.fields ] )
 		for field in self.fields :
-			if self.rows[ 0 ][ field ].isdigit() :
+			if self.isnumber( self.rows[ 0 ][ field ] ) :
 				self.fieldtypes[ field ] = NUMERIC_FIELD
 			else :
 				self.fieldtypes[ field ] = LITERAL_FIELD
+			
+	def isnumber( self , st ) :
+		if st.isdigit() : return True
+		try :
+			x = float( st )
+			return True
+		except Exception :
+			return False
 
 	def extractFromLine( self , line , ommit_positions = [] ) :
 		x = line[ :-1 ].split( FIELD_DELIMITER )
@@ -92,13 +100,15 @@ class Data :
 		if not self.discretize : return
 		for field in self.fields :
 			if self.fieldtypes[ field ] != NUMERIC_FIELD : continue
-			for row in self.rows :
-				if compare( self.stats[ field ][ 'max' ] - self.stats[ field ][ 'min' ] , 1.0 ) == 0 :
+			for i in xrange( len( self.rows ) ) :
+				row = self.rows[ i ]
+				if compare( self.stats[ field ]['max'] - self.stats[ field ]['min'] , 1.0 ) == 0 :
 					continue
 				if compare( float( row[ field ] ) , float( self.stats[ field ][ 'median' ] ) ) > 0 :
 					row[ field ] = 1
 				else :
 					row[ field ] = 0
+				self.rows[ i ] = copy( row )
 
 	def calculatecounters( self ) :
 		counter_file = "%s/%s%s" % ( os.path.dirname( self.source ) , os.path.splitext( os.path.basename( self.source ) )[ 0 ] , '_counters.txt' )
@@ -199,5 +209,5 @@ class Data :
 if __name__ == '__main__' :
 	if len( sys.argv ) == 2 :
 		datasetfile = sys.argv[ 1 ]
-		data = Data( datasetfile )
+		data = Data( datasetfile , savefilter = True )
 		data.printstats()
