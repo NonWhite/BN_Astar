@@ -1,9 +1,22 @@
 import os
-from subprocess import call
+import signal
+import time
+from subprocess import Popen
 
 DATASET_FILE = 'sets.txt'
 PROGRAM = 'python ../code/astar.py %s %s'
 CONF_LINES = 3
+TIMEOUT = 7200
+
+def timeout_command( command , timeout ) :
+	start = time.time()
+	process = Popen( command )
+	while process.poll() is None :
+		time.sleep( 0.1 )
+		now = time.time()
+		if now - start > timeout :
+			os.kill( process.pid , signal.SIGKILL )
+			os.waitpid( -1 , os.WNOHANG )
 
 if __name__ == "__main__" :
 	with open( DATASET_FILE , 'r' ) as f :
@@ -12,4 +25,5 @@ if __name__ == "__main__" :
 			dataset , ommit , _ = lines[ i:(i+CONF_LINES) ]
 			print "PROCESSING DATASET %s" % dataset
 			inst = ( PROGRAM % ( dataset , ommit ) ).split()
-			call( inst )
+			timeout_command( inst , TIMEOUT )
+			#call( inst , timeout = 7200 )
