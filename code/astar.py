@@ -32,36 +32,86 @@ class BNBuilder :
 				f.write( "%s:%s\n" % ( field , ', '.join( network[ field ][ 'childs' ] ) ) )
 		self.modelfile = best_file
 
-	# TODO
 	def aStar( self ) :
 		''' START FUNCTION POINTERS '''
 		hashed = self.model.hashedarray
+		get_score = self.get_cost
+		set_score = self.set_cost
+		heuri = self.heuristic
+		get_total = self.get_F
+		network = self.find_greedy_network
+		is_goal = self.is_goal
 		best_parents = self.find_best_parents
-		network = self.find_greedy_network( node )
-		isgoal = self.check_ifgoal
+		write = self.out.write
 		''' END FUNCTION POINTERS '''
+		init_time = clock()
+		self.init_astar()
 		visited = {}
 		q = pqueue()
-		node = hashed( [] )
-		visited[ hashed( node ) ] = 0
-		q.put( ( node , visited[ node ] ) )
+		start = []
+		set_score( start , 0 )
+		visited[ hashed( start ) ] = True
+		q.put( ( get_total( start ) , start ) )
 		while not q.empty() :
-			node , sc = q.get()
-			if isgoal( node ) : return network( node )
-			for field in self.data.fields :
-				if field in node : continue
-				parents = best_parents( field , node )
-				new_node = copy( node )
-				new_node.append( field )
-				hash_node = hashed( new_node )
-				if hash_node in visited : continue
-				new_sc = sc + self.cost( node , field ) # TODO
-				visited[ hash_node ] = new_sc
-				q.put( ( new_sc , new_node ) )
+			F , U = q.get()
+			if is_goal( U ) :
+				cpu_time = clock() - init_time
+				write( "ORDER = %s\n" % ','.join( U ) )
+				write( "SCORE = %s\n" % get_score( U ) )
+				write( "TIME = %s\n" % cpu_time )
+				return network( U )
+			if compare( get_total( U ) , F ) < 0 : continue
+			visited[ hashed( U ) ] = True
+			for X in self.data.fields :
+				if X in U : continue
+				new_U = copy( U )
+				new_U.append( X )
+				hu = hashed( new_U )
+				g = get_score( U ) - self.model.bic_score( X , best_parents( X , U ) )
+				if hu in visited : continue
+				if hu not in self.g or compare( g , get_score( new_U ) ) < 0 :
+					q.put( ( g + heuri( new_U ) , new_U ) )
+					set_score( new_U , g )
 		return None
 
-	def check_ifgoal( self , lst ) :
+	def is_goal( self , lst ) :
 		return len( lst ) == len( self.data.fields )
+
+	def init_astar( self ) :
+		self.g = {}
+		self.h = {}
+
+	def get_cost( self , lst_vars ) :
+		hlst = self.model.hashedarray( lst_vars )
+		if hlst in self.g : return self.g[ hlst ]
+		cost = self.get_cost( lst_vars[ :-1 ] )
+		parents = self.find_best_parents( lst_vars[ -1 ] , lst_vars[ :-1 ] )
+		cost -= self.model.bic_score( lst_vars[ -1 ] , parents )
+		print "COST( %s ) = %s" % ( lst_vars , cost )
+		return cost
+
+	def set_cost( self , lst_vars , sc ) :
+		hlst = self.model.hashedarray( lst_vars )
+		self.g[ hlst ] = sc
+
+	def get_F( self , lst_vars ) :
+		g = self.get_cost( lst_vars )
+		h = self.heuristic( lst_vars )
+		return g + h
+
+	def simple( self , lst_vars ) :
+		hlst = self.model.hashedarray( lst_vars )
+		if hlst in self.h : return self.h[ hlst ]
+		h = 0
+		for field in self.data.fields :
+			if field in lst_vars : continue
+			options = copy( self.data.fields )
+			options.remove( field )
+			par = self.find_best_parents( field , options )
+			h -= self.model.bic_score( field , par )
+		#print "HEURISTIC( %s ) = %s" % ( lst_vars , h )
+		self.h[ hlst ] = h
+		return h
 
 	def greedySearch( self ) :
 		''' START POINTER FUNCTIONS '''
@@ -220,8 +270,8 @@ class BNBuilder :
 		elif desc == 'unweighted' : self.initialize = self.unweighted_solution
 		elif desc == 'weighted' : self.initialize = self.weighted_solution
 
-	def setHeuristicFunction( self , heuristic ) :
-		if heuristic == 'h1' : self.cost = self.h1
+	def setHeuristicFunction( self , heuri ) :
+		if heuri == 'simple' : self.heuristic = self.simple
 
 	''' =========================== RANDOM SOLUTION APPROACH =========================== '''
 	def random_solution( self ) :
@@ -385,9 +435,9 @@ if __name__ == "__main__" :
 		out_file = "%s%s_%%s.txt" % ( RESULTS_DIR , builder.dataset_name )
 		
 		'''
-		print "========== RUNNING WITH A Star 1 =========="
-		builder.setSolver( 'a_star' , { 'heuristic' : 'first' } )
-		builder.buildNetwork( outfilepath = out_file % 'astar1' )
+		print "========== RUNNING WITH SIMPLE HEURISTIC =========="
+		builder.setSolver( 'a_star' , { 'heuristic' : 'simple' } )
+		builder.buildNetwork( outfilepath = out_file % 'simple' )
 
 		print "========== RUNNING WITH A Star 2 =========="
 		builder.setSolver( 'a_star' , { 'heuristic' : 'second' } )
