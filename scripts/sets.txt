@@ -1,16 +1,37 @@
 ../data/census.csv
 None
 
+../data/voting.csv
+None
+
 ../data/letter.csv
+None
+
+../data/hepatitis.csv
 None
 
 ../data/image.csv
 None
 
+../data/heart.csv
+None
+
 ../data/mushroom.csv
 None
 
+../data/parkinsons.csv
+None
+
 ../data/sensors.csv
+None
+
+../data/autos.csv
+None
+
+../data/horse.csv
+None
+
+../data/flag.csv
 None
 
 ../data/steelPlates.csv
