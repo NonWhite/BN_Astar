@@ -1,7 +1,10 @@
 from utils import *
+from math import log
 from copy import deepcopy as copy
+import os
 import os.path
 import sys
+import subprocess
 
 class Data :
 	def __init__( self , source , savefilter = False , ommit = [] , discretize = True , outfile = 'out.csv' ) :
@@ -113,35 +116,47 @@ class Data :
 	def calculatecounters( self ) :
 		counter_file = "%s/%s%s" % ( os.path.dirname( self.source ) , os.path.splitext( os.path.basename( self.source ) )[ 0 ] , '_counters.txt' )
 		self.counters = {}
+		#return 'GG'
 		if os.path.isfile( counter_file ) :
 			print "Reading from %s all counters" % counter_file
 			with open( counter_file , 'r' ) as f :
-				lines = [ l[ :-1 ].split( ' ' ) for l in f.readlines() ]
-				for L in lines :
+				for line in f :
+					L = line[ :-1 ].split( ' ' )
 					self.counters[ L[ 0 ] ] = float( L[ 1 ] )
 		else :
+			MAX_NUM_PARENTS = int( log( 2 * len( self.rows ) / log( len( self.rows ) ) ) )
 			print "Pre-calculating all queries from data"
-			self.subconj = []
+			files = []
 			for i in xrange( 1 , MAX_NUM_PARENTS + 2 ) :
-				self.subconj.extend( [ list( x ) for x in itertools.combinations( self.fields , i ) ] )
-			for idx in xrange( len( self.rows ) ) :
-				row = self.rows[ idx ]
-				for sub in self.subconj :
-					H = self.hashed( getsubconj( row , sub ) )
-					if H not in self.counters : self.counters[ H ] = 0.0
-					self.counters[ H ] += 1.0
-				if idx % 1000 == 0 : print idx
-			print "Saving in %s all counters" % counter_file
-			with open( counter_file , 'w' ) as f :
-				for ( key , value ) in self.counters.iteritems() :
-					f.write( "%s %s\n" % ( key , value ) )
-	
+				subconj_file = "%s/%s_%s_%s" % ( os.path.dirname( self.source ) , os.path.splitext( os.path.basename( self.source ) )[ 0 ] , 'counters' , '%s.txt' % i )
+				files.append( subconj_file )
+				if os.path.isfile( subconj_file ) : continue
+				subconj = [ list( x ) for x in itertools.combinations( self.fields , i ) ]
+				counters = {}
+				print "Calculating queries of size %s" % i
+				for idx in xrange( len( self.rows ) ) :
+					row = self.rows[ idx ]
+					for sub in subconj :
+						H = self.hashed( getsubconj( row , sub ) )
+						if H not in counters : counters[ H ] = 0.0
+						counters[ H ] += 1.0
+					if idx % 500 == 0 : print idx
+				with open( subconj_file , 'w' ) as f :
+					for ( key , value ) in counters.iteritems() :
+						f.write( "%s %s\n" % ( key , value ) )
+			merge_files( files , counter_file )
+
 	def deletecounters( self ) :
 		self.counters = None
 
 	def getcount( self , fields ) :
 		F = self.hashed( fields )
 		if F not in self.counters : self.counters[ F ] = 0.0
+		query = "SELECT COUNT(*) FROM %s WHERE " % self.source
+		constraints = ' AND '.join( [ "%s = %s" % ( k , fields[ k ] ) for k in fields ] )
+		query += constraints
+		out = subprocess.check_output( [ 'python' , 'querycsv.py' , '-d,' , '-H' , query ] )
+		self.counters[ F ] = int( out )
 		return self.counters[ F ]
 
 	def hashed( self , cond ) :
@@ -182,7 +197,8 @@ class Data :
 				print "Median = %s" % self.stats[ field ][ 'median' ]
 			avg_vals_per_var += diffvalues
 		print "AVG #VALS/VAR = %s" % ( avg_vals_per_var / len( self.fields ) )
-
+		print "MAX NUM PARENTS = %s" % int( log( 2 * len( self.rows ) / log( len( self.rows ) ) ) )
+	
 	def evaluate( self , setfields , pos = 0 ) :
 		if pos == len( setfields ) : return []
 		field = setfields[ pos ]
