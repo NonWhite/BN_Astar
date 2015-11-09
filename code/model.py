@@ -33,46 +33,66 @@ class Model :
 					if sp[ 0 ] == '' : sp = []
 					prune = False
 					self.bestparents[ field ].append( sp )
-			for f1 in self.data.fields :
-				for f2 in self.data.fields :
-					if f1 == f2 : continue
-					lstpar = self.bestparents[ f1 ]
-					coinc = ''.join( [ str( int( f2 in s ) ) for s in lstpar ] )
-					self.bitsets[ f1 ][ f2 ] = bitarray( coinc )
+			self.create_bitsets()
 		else :
 			print "Pre-calculating all scores from model"
 			self.data.calculatecounters()
+			MAX_NUM_PARENTS = int( log( 2 * len( self.data.rows ) / log( len( self.data.rows ) ) ) )
+			files = []
 			for field in self.data.fields :
-				for k in xrange( 0 , MAX_NUM_PARENTS + 1 ) :
-					options = [ f for f in self.data.fields if f != field ]
+				print "Calculating scores for field %s" % field
+				field_file = "%s/%s_%s_%s" % ( os.path.dirname( self.data.source ) , os.path.splitext( os.path.basename( self.data.source ) )[ 0 ] , 'scores' , '%s.txt' % field )
+				files.append( field_file )
+				if os.path.isfile( field_file ) : continue
+				options = copy( self.data.fields )
+				options.remove( field )
+				for k in xrange( 0 , MAX_NUM_PARENTS ) :
+					print "Size = %s" % ( k + 1 )
 					subconj = [ list( x ) for x in itertools.combinations( options , k ) ]
-					for sub in subconj : self.bic_score( field , sub )
-			self.data.deletecounters()
-			self.reduce_bicscores()
-			with open( score_file , 'w' ) as f :
-				for field in self.data.fields :
+					for sub in subconj :
+						sc = self.bic_score( field , sub )
+						prune = False
+						for f in sub :
+							par_sub = copy( sub )
+							par_sub.remove( f )
+							par_sc = self.bic_score( field , par_sub )
+							if compare( sc , par_sc ) < 0 :
+								prune = True
+								break
+						if not prune :
+							self.bestparents[ field ].append( copy( sub ) )
+				tmp = [ ( self.bicvalues[ field ][ self.hashedarray( p ) ] , p ) for p in self.bestparents[ field ] ]
+				tmp.sort( reverse = True )
+				self.bestparents[ field ] = [ p[ 1 ] for p in tmp ]
+				with open( field_file , 'w' ) as f :
 					lstparents = self.bestparents[ field ]
 					for p in lstparents :
 						par = self.hashedarray( copy( p ) )
 						hp = copy( par )
 						if par == '' : hp = '_'
 						f.write( "%s %s %s\n" % ( field , hp , self.bicvalues[ field ][ par ] ) )
+				self.bicvalues.pop( field , None )
+			self.data.deletecounters()
+			merge_files( files , score_file )
+			self.create_bitsets()
 
-	def reduce_bicscores( self ) :
-		for field in self.data.fields :
-			tmp = [ ( self.bicvalues[ field ][ p ] , self.decodearray( p ) ) for p in self.bicvalues[ field ] ]
-			tmp.sort( reverse = True )
-			for i in xrange( len( tmp ) ) :
-				( sc , p ) = tmp[ i ]
-				prune = False
-				if not set( p ).issubset( tmp[ 0 ][ 1 ] ) :
-					for j in xrange( i ) :
-						( old_sc , old_p ) = tmp[ j ]
-						if set( old_p ).issubset( p ) :
-							prune = True
-							break
-				if not prune : self.bestparents[ field ].append( p )
-				else : self.bicvalues[ field ].pop( self.hashedarray( p ) , None )
+	def reduce_bicscores( self , field ) :
+		print "Reducing score lists for field %s" % field
+		tmp = [ ( self.bicvalues[ field ][ p ] , self.decodearray( p ) ) for p in self.bicvalues[ field ] ]
+		tmp.sort( reverse = True )
+		for i in xrange( len( tmp ) ) :
+			( sc , p ) = tmp[ i ]
+			prune = False
+			if not set( p ).issubset( tmp[ 0 ][ 1 ] ) :
+				for j in xrange( i ) :
+					( old_sc , old_p ) = tmp[ j ]
+					if set( old_p ).issubset( p ) :
+						prune = True
+						break
+			if not prune : self.bestparents[ field ].append( p )
+			else : self.bicvalues[ field ].pop( self.hashedarray( p ) , None )
+
+	def create_bitsets( self ) :
 		for f1 in self.data.fields :
 			for f2 in self.data.fields :
 				if f1 == f2 : continue
