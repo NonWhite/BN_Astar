@@ -22,30 +22,9 @@ None
 ../data/parkinsons.csv
 None
 
-../data/sensors.csv
-None
-
 ../data/autos.csv
 None
 
-../data/horse.csv
-None
-
 ../data/flag.csv
-None
-
-../data/steelPlates.csv
-None
-
-../data/epigenetics.csv
-None
-
-../data/alarm.csv
-None
-
-../data/spectf.csv
-None
-
-../data/lungCancer.csv
 None
 
