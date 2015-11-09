@@ -59,3 +59,11 @@ def compare( fa , fb ) :
 def getsubconj( data , keys ) :
 	resp = dict( [ ( k , data[ k ] ) for k in keys ] )
 	return resp
+
+def merge_files( lst_files , out_file ) :
+	with open( out_file , 'w' ) as out :
+		for c in lst_files :
+			with open( c , 'r' ) as f :
+				for line in f :
+					out.write( line )
+			os.remove( c )
