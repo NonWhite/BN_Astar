@@ -34,7 +34,7 @@ class BNBuilder :
 
 	def aStar( self ) :
 		''' START FUNCTION POINTERS '''
-		hashed = self.model.hashedarray
+		hashed = self.hashedorder
 		get_score = self.get_cost
 		set_score = self.set_cost
 		heuri = self.heuristic
@@ -51,14 +51,20 @@ class BNBuilder :
 		start = []
 		set_score( start , 0 )
 		visited[ hashed( start ) ] = True
-		q.put( ( get_total( start ) , start ) )
+		q.put_nowait( ( get_total( start ) , start ) )
+		expanded = 0
+		generated = 0
 		while not q.empty() :
-			F , U = q.get()
+			F , U = q.get_nowait()
+			#print U , F
+			expanded += 1
 			if is_goal( U ) :
 				cpu_time = clock() - init_time
 				write( "ORDER = %s\n" % ','.join( U ) )
 				write( "SCORE = %s\n" % get_score( U ) )
 				write( "TIME = %s\n" % cpu_time )
+				write( "EXPANDED = %s\n" % expanded )
+				write( "GENERATED = %s\n" % generated )
 				return network( U )
 			if compare( get_total( U ) , F ) < 0 : continue
 			visited[ hashed( U ) ] = True
@@ -70,9 +76,13 @@ class BNBuilder :
 				g = get_score( U ) - self.model.bic_score( X , best_parents( X , U ) )
 				if hu in visited : continue
 				if hu not in self.g or compare( g , get_score( new_U ) ) < 0 :
-					q.put( ( g + heuri( new_U ) , new_U ) )
+					generated += 1
+					q.put_nowait( ( g + heuri( new_U ) , new_U ) )
 					set_score( new_U , g )
 		return None
+	
+	def hashedorder( self , lst_vars ) :
+		return ','.join( lst_vars )
 
 	def is_goal( self , lst ) :
 		return len( lst ) == len( self.data.fields )
@@ -82,7 +92,7 @@ class BNBuilder :
 		self.h = {}
 
 	def get_cost( self , lst_vars ) :
-		hlst = self.model.hashedarray( lst_vars )
+		hlst = self.hashedorder( lst_vars )
 		if hlst in self.g : return self.g[ hlst ]
 		cost = self.get_cost( lst_vars[ :-1 ] )
 		parents = self.find_best_parents( lst_vars[ -1 ] , lst_vars[ :-1 ] )
@@ -91,7 +101,7 @@ class BNBuilder :
 		return cost
 
 	def set_cost( self , lst_vars , sc ) :
-		hlst = self.model.hashedarray( lst_vars )
+		hlst = self.hashedorder( lst_vars )
 		self.g[ hlst ] = sc
 
 	def get_F( self , lst_vars ) :
@@ -100,7 +110,7 @@ class BNBuilder :
 		return g + h
 
 	def simple( self , lst_vars ) :
-		hlst = self.model.hashedarray( lst_vars )
+		hlst = self.hashedorder( lst_vars )
 		if hlst in self.h : return self.h[ hlst ]
 		h = 0
 		for field in self.data.fields :
@@ -112,6 +122,12 @@ class BNBuilder :
 		#print "HEURISTIC( %s ) = %s" % ( lst_vars , h )
 		self.h[ hlst ] = h
 		return h
+
+	def dynamic_kcycle( self , lst_vars ) :
+		return 0
+
+	def static_kcycle( self , lst_vars ) :
+		return 0
 
 	def greedySearch( self ) :
 		''' START POINTER FUNCTIONS '''
