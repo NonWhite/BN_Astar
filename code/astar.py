@@ -32,6 +32,9 @@ class BNBuilder :
 				f.write( "%s:%s\n" % ( field , ', '.join( network[ field ][ 'childs' ] ) ) )
 		self.modelfile = best_file
 
+	''' ======================================================================= '''
+	''' =========================== A STAR ALGORITHM ========================== '''
+	''' ======================================================================= '''
 	def aStar( self ) :
 		''' START FUNCTION POINTERS '''
 		hashed = self.hashedorder
@@ -109,6 +112,7 @@ class BNBuilder :
 		h = self.heuristic( lst_vars )
 		return g + h
 
+	''' =========================== SIMPLE HEURISTIC =========================== '''
 	def simple( self , lst_vars ) :
 		hlst = self.hashedorder( lst_vars )
 		if hlst in self.h : return self.h[ hlst ]
@@ -123,12 +127,100 @@ class BNBuilder :
 		self.h[ hlst ] = h
 		return h
 
+	''' ======================= DYNAMIC KCYCLE HEURISTIC ======================= '''
 	def dynamic_kcycle( self , lst_vars ) :
-		return 0
+		''' START POINTER FUNCTIONS '''
+		isempty = lambda x : len( x ) == 0
+		pats = self.simple_patterns
+		''' END POINTER FUNCTIONS '''
+		if isempty( self.h ) : self.init_simple_patterns()
+		hlst = self.hashedorder( lst_vars )
+		if hlst in self.h : return self.h[ hlst ]
+		h = 0
+		lst = copy( lst_vars )
+		while not isempty( lst ) :
+			for ( df , s ) in pats : # Descending order
+				if set( s ).issubset( lst ) : # Pick max value
+					h += df
+					for f in s : lst.remove( f )
+		self.h[ hlst ] = h
+		return h
+	
+	# TODO
+	def init_simple_patterns( self ) :
+		''' START POINTER FUNCTIONS '''
+		K = self.kcycle_size
+		hashed = self.model.hashedarray
+		decode = self.model.decodearray
+		expand = self.expand
+		check_save = self.check_save
+		''' END POINTER FUNCTIONS '''
+		patterns = dict( [ ( size , {} ) for size in xrange( 0 , K + 1 ) ] )
+		diff = {}
+		shash = hashed( self.data.fields )
+		patterns[ 0 ][ shash ] = 0.0
+		diff[ shash ] = 0.0
+		saved = []
+		for l in xrange( 1 , K + 1 ) :
+			print patterns[ l - 1 ]
+			for s in patterns[ l - 1 ] :
+				u = decode( s )
+				expand( u , l , patterns )
+				check_save( u , diff , saved )
+				sub_lst = [ field for field in self.data.fields if field not in u ]
+				lhash = hashed( sub_lst )
+				self.simple_patterns[ lhash ] = patterns[ l - 1 ][ s ]
+		tmp = [ ( self.simple_patterns[ s ] , s ) for s in self.simple_patterns if s in saved ]
+		tmp = sorted( tmp , reverse = True )
+		self.simple_patterns = copy( tmp )
+	
+	# TODO: Check
+	def expand( self , lst_vars , layer , patterns ) :
+		''' START POINTER FUNCTIONS '''
+		hashed = self.model.hashedarray
+		best_score = lambda f , p : -self.model.bic_score( f , self.find_best_parents( f , p ) )
+		''' END POINTER FUNCTIONS '''
+		shash = hashed( lst_vars )
+		for field in lst_vars :
+			sub_lst = copy( lst_vars )
+			sub_lst.remove( field )
+			subh = hashed( sub_lst )
+			print "O = %s\tS = %s" % ( shash , subh )
+			score = patterns[ layer - 1 ][ shash ] + best_score( field , sub_lst )
+			if subh not in patterns[ layer ] or \
+				compare( score , patterns[ layer ][ subh ] ) < 0 :
+				patterns[ layer ][ subh ] = score
 
+	# TODO: Check
+	def check_save( self , lst_vars , diff , saved ) :
+		''' START POINTER FUNCTIONS '''
+		hashed = self.model.hashedarray
+		best_score = lambda f , p : self.model.bic_score( f , self.find_best_parents( f , p ) )
+		''' END POINTER FUNCTIONS '''
+		uhash = hashed( lst_vars )
+		diff[ uhash ] = self.simple_patterns[ uhash ] - self.simple( lst_vars )
+		for field in self.data.fields :
+			if field in lst_vars : continue
+			sup_lst = copy( lst_vars )
+			sup_lst.append( field )
+			shash = hashed( sup_lst )
+			if compare( diff[ uhash ] , diff[ shash ] ) > 0 :
+				saved.append( lst_vars )
+
+	''' ======================= STATIC KCYCLE HEURISTIC ======================= '''
 	def static_kcycle( self , lst_vars ) :
-		return 0
+		if len( self.h ) == 0 : init_multiple_patterns()
+		hlst = self.hashedorder( lst_vars )
+		if hlst in self.h : return self.h[ hlst ]
+		h = 0
+		return h
+	
+	def init_multiple_patterns( self ) :
+		return 'gg'
 
+	''' ======================================================================= '''
+	''' ======================= GREEDY SEARCH ALGORITHM ======================= '''
+	''' ======================================================================= '''
 	def greedySearch( self ) :
 		''' START POINTER FUNCTIONS '''
 		better_order = self.better_order
@@ -279,15 +371,23 @@ class BNBuilder :
 			self.setInitialSolutionType( params[ 'initial_solution' ] )
 		elif solver == 'a_star' :
 			self.solver = self.aStar
-			self.setHeuristicFunction( params[ 'heuristic' ] )
+			self.setHeuristicFunction( params )
 
 	def setInitialSolutionType( self , desc ) :
 		if desc == 'random' : self.initialize = self.random_solution
 		elif desc == 'unweighted' : self.initialize = self.unweighted_solution
 		elif desc == 'weighted' : self.initialize = self.weighted_solution
 
-	def setHeuristicFunction( self , heuri ) :
-		if heuri == 'simple' : self.heuristic = self.simple
+	def setHeuristicFunction( self , params ) :
+		heuri = params[ 'heuristic' ]
+		if heuri == 'simple' :
+			self.heuristic = self.simple
+		elif heuri == 'dynamic' :
+			self.heuristic = self.dynamic_kcycle
+			self.kcycle_size = params[ 'ksize' ]
+			self.simple_patterns = {}
+		elif heuri == 'static' :
+			self.heuristic = self.static_kcycle
 
 	''' =========================== RANDOM SOLUTION APPROACH =========================== '''
 	def random_solution( self ) :
@@ -451,18 +551,19 @@ if __name__ == "__main__" :
 		out_file = "%s%s_%%s.txt" % ( RESULTS_DIR , builder.dataset_name )
 		
 		'''
-		print "========== RUNNING WITH SIMPLE HEURISTIC =========="
+		print "============== RUNNING WITH SIMPLE HEURISTIC =============="
 		builder.setSolver( 'a_star' , { 'heuristic' : 'simple' } )
 		builder.buildNetwork( outfilepath = out_file % 'simple' )
-
-		print "========== RUNNING WITH A Star 2 =========="
-		builder.setSolver( 'a_star' , { 'heuristic' : 'second' } )
-		builder.buildNetwork( outfilepath = out_file % 'astar2' )
-
-		print "========== RUNNING WITH A Star 3 =========="
-		builder.setSolver( 'a_star' , { 'heuristic' : 'third' } )
-		builder.buildNetwork( outfilepath = out_file % 'astar3' )
 		'''
+
+		print "=========== RUNNING WITH DYNAMIC KCYCLE HEURISTIC =========="
+		builder.setSolver( 'a_star' , { 'heuristic' : 'dynamic' , 'ksize' : 2 } )
+		builder.buildNetwork( outfilepath = out_file % 'dynamic' )
+
+		'''
+		print "=========== RUNNING WITH STATIC KCYCLE HEURISTIC =========="
+		builder.setSolver( 'a_star' , { 'heuristic' : 'static' } )
+		builder.buildNetwork( outfilepath = out_file % 'static' )
 
 		print "========== RUNNING WITH RANDOM PERMUTATION =========="
 		builder.setSolver( 'greedy_search' , { 'initial_solution' : 'random' } )
@@ -475,5 +576,6 @@ if __name__ == "__main__" :
 		print "========== RUNNING WITH FAS APPROXIMATION =========="
 		builder.setSolver( 'greedy_search' , { 'initial_solution' : 'weighted' } )
 		builder.buildNetwork( outfilepath = out_file % 'weighted' )
+		'''
 	else :
 		print "Usage: pypy %s <csv_file> <ommit_fields> <results_file>" % sys.argv[ 0 ]
