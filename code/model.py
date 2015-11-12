@@ -37,7 +37,10 @@ class Model :
 		else :
 			print "Pre-calculating all scores from model"
 			self.data.calculatecounters()
-			MAX_NUM_PARENTS = int( log( 2 * len( self.data.rows ) / log( len( self.data.rows ) ) ) )
+			''' MDL_SCORE '''
+			#MAX_NUM_PARENTS = int( log( 2 * len( self.data.rows ) / log( len( self.data.rows ) ) ) )
+			''' BIC SCORE '''
+			MAX_NUM_PARENTS = int( log( len( self.data.rows ) ) )
 			files = []
 			for field in self.data.fields :
 				print "Calculating scores for field %s" % field
@@ -199,6 +202,19 @@ class Model :
 		H = self.entropy( xsetfield , ysetfield )
 		S = self.size( xsetfield , ysetfield )
 		resp = ( -N * H ) - ( log( N ) / 2.0 * S )
+		#print "BIC( %s | %s ) = %s" % ( xsetfield , ysetfield , resp )
+		self.bicvalues[ field ][ cond ] = resp
+		return resp
+
+	def mdl_score( self , xsetfield , ysetfield ) :
+		field = xsetfield
+		cond = self.hashedarray( ysetfield )
+		if cond in self.bicvalues[ field ] : return self.bicvalues[ field ][ cond ]
+		#print "Calculating BIC( %s | %s )" % ( xsetfield , ysetfield )
+		N = len( self.data.rows )
+		H = self.entropy( xsetfield , ysetfield )
+		S = self.size( xsetfield , ysetfield )
+		resp = N * H + ( log( N ) / 2.0 * S )
 		#print "BIC( %s | %s ) = %s" % ( xsetfield , ysetfield , resp )
 		self.bicvalues[ field ][ cond ] = resp
 		return resp
