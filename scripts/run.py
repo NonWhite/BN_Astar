@@ -6,7 +6,7 @@ from subprocess import Popen
 DATASET_FILE = 'sets.txt'
 PROGRAM = 'python ../code/astar.py %s %s'
 CONF_LINES = 3
-TIMEOUT = 7200
+TIMEOUT = 72000
 
 def timeout_command( command , timeout ) :
 	start = time.time()
@@ -26,4 +26,4 @@ if __name__ == "__main__" :
 			print "PROCESSING DATASET %s" % dataset
 			inst = ( PROGRAM % ( dataset , ommit ) ).split()
 			timeout_command( inst , TIMEOUT )
-			#call( inst , timeout = 7200 )
+			#call( inst )
