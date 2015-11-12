@@ -6,7 +6,7 @@ from os.path import *
 from copy import deepcopy as copy
 
 color = [ 'b' , 'r' , 'g' ]
-datasets = [ 'census' , 'letter' , 'image' , 'mushroom' , 'sensors' , 'steelPlates' , 'epigenetics' , 'alarm' , 'spectf' , 'lungCancer' ]
+datasets = [ 'census' , 'voting' , 'letter' , 'hepatitis' , 'image' , 'heart' , 'mushroom' , 'parkinsons' , 'autos' , 'flag' ]
 types = [ 'random' , 'unweighted' , 'weighted' ]
 labeltype = [ 'Random' , 'DFS-based' , 'FAS-based' ]
 SOL_DELIMITER = ' =='
@@ -58,22 +58,15 @@ def read_content( fpath , name ) :
 	max_time = max( all_times )
 	avg_time = statistics.mean( all_times )
 	stdev_time = statistics.stdev( all_times )
-	print name.upper()
-	print "MAX SCORE = %s" % max_sc
+	print " ====== %s ====== " % name.upper()
 	print "TOTAL NUM SOLUTIONS = %s" % total_sols
 	print "NUM OF SOLUTIONS WITH MAX SCORE = %s" % num_sols
-	print "AVG INIT SCORE = %s" % avg_init_sc
-	print "STDEV INIT SCORE = %s" % std_init_sc
-	print "AVG MAX SCORE = %s" % avg_best_sc
-	print "STDEV MAX SCORE = %s" % std_best_sc
+	print "BEST SCORE = %s +/- %s (%s)" % ( avg_best_sc , std_best_sc , max_sc )
 	print "PERCENTAGE WITH MAX SCORE = %s" % perc_sols
-	print "MAX NUM ITERATIONS = %s" % max_iterations
-	print "AVG NUM ITERATIONS = %s" % avg_iterations
-	print "STDEV NUM ITERATIONS = %s" % stdev_iterations
-	print "MAX CPU TIME = %s" % max_time
-	print "AVG CPU TIME = %s" % avg_time
-	print "STDEV CPU TIME = %s" % stdev_time
-	print "%.3f & %.3f $\pm$ %.2f & %.3f $\pm$ %.2f & %.2f & %.2f $\pm$ %.2f" % ( max_sc , avg_init_sc , std_init_sc , avg_best_sc , std_best_sc , perc_sols , avg_iterations , stdev_iterations )
+	print "INIT SCORE = %s +/- %s" % ( avg_init_sc , std_init_sc )
+	print "NUM ITERATIONS = %s +/- %s (%s)" % ( avg_iterations , stdev_iterations , max_iterations )
+	print "CPU TIME = %s +/- %s (%s)" % ( avg_time , stdev_time , max_time )
+	#print "%.3f & %.3f $\pm$ %.2f & %.3f $\pm$ %.2f & %.2f & %.2f $\pm$ %.2f" % ( max_sc , avg_init_sc , std_init_sc , avg_best_sc , std_best_sc , perc_sols , avg_iterations , stdev_iterations )
 	max_length = max( [ len( s[ 'score' ] ) for s in data[ 'solutions' ] ] )
 	avg_scores = []
 	for i in xrange( max_length ) :
@@ -100,11 +93,14 @@ def addPoint( x , y , col ) :
 # TODO
 def makePlot( directory , dataname ) :
 	networkdata = []
+	print ' ============================ %s =========================== ' % dataname.upper()
 	for i in xrange( len( types ) ) :
 		t = types[ i ]
 		lbl = labeltype[ i ]
 		f = "%s%s_%s.txt" % ( directory , dataname , t )
+		if not isfile( f ) : continue
 		networkdata.append( read_content( f , lbl ) )
+	return 'gg'
 	max_iterations = max( [ d[ 'iterations' ] for d in networkdata ] )
 	for i in range( len( networkdata ) ) :
 		data = networkdata[ i ]
