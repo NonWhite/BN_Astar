@@ -45,6 +45,7 @@ class Data :
 				out.write( ','.join( self.fields ) + '\n' )
 				for row in newrows : out.write( ','.join( row ) + '\n' )
 			print "FILTER ROWS = %6s" % len( newrows )
+		print "ATTRIBUTES = %s" % len( self.fields )
 		if self.savefiltered : print "Created %s!!!" % outfile
 		self.rowsToDict()
 		self.analyzeFields()
@@ -116,7 +117,6 @@ class Data :
 	def calculatecounters( self ) :
 		counter_file = "%s/%s%s" % ( os.path.dirname( self.source ) , os.path.splitext( os.path.basename( self.source ) )[ 0 ] , '_counters.txt' )
 		self.counters = {}
-		#return 'GG'
 		if os.path.isfile( counter_file ) :
 			print "Reading from %s all counters" % counter_file
 			with open( counter_file , 'r' ) as f :
@@ -124,8 +124,12 @@ class Data :
 					L = line[ :-1 ].split( ' ' )
 					self.counters[ L[ 0 ] ] = float( L[ 1 ] )
 		else :
-			MAX_NUM_PARENTS = int( log( 2 * len( self.rows ) / log( len( self.rows ) ) ) )
+			''' MDL Score '''
+			#MAX_NUM_PARENTS = int( log( 2 * len( self.rows ) / log( len( self.rows ) ) ) )
+			''' BIC Score '''
+			MAX_NUM_PARENTS = int( log( len( self.rows ) ) )
 			print "Pre-calculating all queries from data"
+			print "Max parent set size = %s" % MAX_NUM_PARENTS
 			files = []
 			for i in xrange( 1 , MAX_NUM_PARENTS + 2 ) :
 				subconj_file = "%s/%s_%s_%s" % ( os.path.dirname( self.source ) , os.path.splitext( os.path.basename( self.source ) )[ 0 ] , 'counters' , '%s.txt' % i )
@@ -197,7 +201,8 @@ class Data :
 				print "Median = %s" % self.stats[ field ][ 'median' ]
 			avg_vals_per_var += diffvalues
 		print "AVG #VALS/VAR = %s" % ( avg_vals_per_var / len( self.fields ) )
-		print "MAX NUM PARENTS = %s" % int( log( 2 * len( self.rows ) / log( len( self.rows ) ) ) )
+		print "BIC MAX PARENTS = %s" % int( log( len( self.rows ) ) )
+		print "MDL MAX PARENTS = %s" % int( log( 2 * len( self.rows ) / log( len( self.rows ) ) ) )
 	
 	def evaluate( self , setfields , pos = 0 ) :
 		if pos == len( setfields ) : return []
