@@ -93,7 +93,7 @@ def addPoint( x , y , col ) :
 # TODO
 def makePlot( directory , dataname ) :
 	networkdata = []
-	print ' ============================ %s =========================== ' % dataname.upper()
+	print ' ================================ %s =============================== ' % dataname.upper()
 	for i in xrange( len( types ) ) :
 		t = types[ i ]
 		lbl = labeltype[ i ]
