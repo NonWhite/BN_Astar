@@ -125,9 +125,9 @@ class Data :
 					self.counters[ L[ 0 ] ] = float( L[ 1 ] )
 		else :
 			''' MDL Score '''
-			#MAX_NUM_PARENTS = int( log( 2 * len( self.rows ) / log( len( self.rows ) ) ) )
+			MAX_NUM_PARENTS = int( log( 2 * len( self.rows ) / log( len( self.rows ) ) ) )
 			''' BIC Score '''
-			MAX_NUM_PARENTS = int( log( len( self.rows ) ) )
+			#MAX_NUM_PARENTS = int( log( len( self.rows ) ) )
 			print "Pre-calculating all queries from data"
 			print "Max parent set size = %s" % MAX_NUM_PARENTS
 			files = []
