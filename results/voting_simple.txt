@@ -1,0 +1,24 @@
+ORDER = Q,D,I,H,O,J,M,B,G,N,E,A,L,K,C,P,F
+SCORE = 1971.67405
+TIME = 0.471939
+EXPANDED = 134
+GENERATED = 1138
+BEST NETWORK:
+SCORE = -2030.608117
+A: B,D,L,Q
+B: 
+C: K,N
+D: E,F,H,I,J
+E: J
+F: G,H,P
+G: N
+H: 
+I: M,O,P
+J: M
+K: 
+L: 
+M: N
+N: O
+O: 
+P: 
+Q: 
