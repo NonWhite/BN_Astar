@@ -31,16 +31,15 @@ class Model :
 					self.bicvalues[ field ][ par ] = float( sc )
 					sp = par.split( ',' )
 					if sp[ 0 ] == '' : sp = []
-					prune = False
 					self.bestparents[ field ].append( sp )
 			self.create_bitsets()
 		else :
 			print "Pre-calculating all scores from model"
 			self.data.calculatecounters()
 			''' MDL_SCORE '''
-			#MAX_NUM_PARENTS = int( log( 2 * len( self.data.rows ) / log( len( self.data.rows ) ) ) )
+			MAX_NUM_PARENTS = int( log( 2 * len( self.data.rows ) / log( len( self.data.rows ) ) ) )
 			''' BIC SCORE '''
-			MAX_NUM_PARENTS = int( log( len( self.data.rows ) ) )
+			#MAX_NUM_PARENTS = int( log( len( self.data.rows ) ) )
 			files = []
 			for field in self.data.fields :
 				print "Calculating scores for field %s" % field
