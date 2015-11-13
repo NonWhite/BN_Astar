@@ -2,7 +2,6 @@ from random import randint
 import subprocess as sub
 import os
 import itertools
-import resource
 
 ''' ======== FILES PARAMETERS ======== '''
 DATA_DIR = '../data/'
