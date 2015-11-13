@@ -37,32 +37,33 @@ class BNBuilder :
 	''' ======================================================================= '''
 	def aStar( self ) :
 		''' START FUNCTION POINTERS '''
-		hashed = self.hashedorder
+		hashed = self.model.hashedarray
 		get_score = self.get_cost
 		set_score = self.set_cost
 		heuri = self.heuristic
 		get_total = self.get_F
 		network = self.find_greedy_network
 		is_goal = self.is_goal
-		best_parents = self.find_best_parents
+		best_score = lambda x , p : -self.model.bic_score( x , self.find_best_parents( x , p ) )
 		write = self.out.write
 		''' END FUNCTION POINTERS '''
 		init_time = clock()
 		self.init_astar()
 		visited = {}
+		ancestor = {}
 		q = pqueue()
 		start = []
 		set_score( start , 0 )
-		visited[ hashed( start ) ] = True
+		ancestor[ hashed( start ) ] = ( None , None )
 		q.put_nowait( ( get_total( start ) , start ) )
 		expanded = 0
 		generated = 0
 		while not q.empty() :
 			F , U = q.get_nowait()
 			#print U , F
-			expanded += 1
 			if is_goal( U ) :
 				cpu_time = clock() - init_time
+				U = self.get_path( ancestor )
 				write( "ORDER = %s\n" % ','.join( U ) )
 				write( "SCORE = %s\n" % get_score( U ) )
 				write( "TIME = %s\n" % cpu_time )
@@ -70,22 +71,30 @@ class BNBuilder :
 				write( "GENERATED = %s\n" % generated )
 				return network( U )
 			if compare( get_total( U ) , F ) < 0 : continue
+			expanded += 1
 			visited[ hashed( U ) ] = True
 			for X in self.data.fields :
 				if X in U : continue
 				new_U = copy( U )
 				new_U.append( X )
 				hu = hashed( new_U )
-				g = get_score( U ) - self.model.bic_score( X , best_parents( X , U ) )
+				g = get_score( U ) + best_score( X , U )
 				if hu in visited : continue
 				if hu not in self.g or compare( g , get_score( new_U ) ) < 0 :
 					generated += 1
 					q.put_nowait( ( g + heuri( new_U ) , new_U ) )
 					set_score( new_U , g )
+					ancestor[ hu ] = ( hashed( U ) , X )
 		return None
-	
-	def hashedorder( self , lst_vars ) :
-		return ','.join( lst_vars )
+
+	def get_path( self , ancestor ) :
+		order = []
+		node = self.model.hashedarray( self.data.fields )
+		while node :
+			node , last_field = ancestor[ node ]
+			if last_field : order.append( last_field )
+		order.reverse()
+		return order
 
 	def is_goal( self , lst ) :
 		return len( lst ) == len( self.data.fields )
@@ -95,16 +104,17 @@ class BNBuilder :
 		self.h = {}
 
 	def get_cost( self , lst_vars ) :
-		hlst = self.hashedorder( lst_vars )
+		hlst = self.model.hashedarray( lst_vars )
 		if hlst in self.g : return self.g[ hlst ]
 		cost = self.get_cost( lst_vars[ :-1 ] )
 		parents = self.find_best_parents( lst_vars[ -1 ] , lst_vars[ :-1 ] )
 		cost -= self.model.bic_score( lst_vars[ -1 ] , parents )
 		print "COST( %s ) = %s" % ( lst_vars , cost )
+		self.g[ hlst ] = cost
 		return cost
 
 	def set_cost( self , lst_vars , sc ) :
-		hlst = self.hashedorder( lst_vars )
+		hlst = self.model.hashedarray( lst_vars )
 		self.g[ hlst ] = sc
 
 	def get_F( self , lst_vars ) :
@@ -114,7 +124,7 @@ class BNBuilder :
 
 	''' =========================== SIMPLE HEURISTIC =========================== '''
 	def simple( self , lst_vars ) :
-		hlst = self.hashedorder( lst_vars )
+		hlst = self.model.hashedarray( lst_vars )
 		if hlst in self.h : return self.h[ hlst ]
 		h = 0
 		for field in self.data.fields :
@@ -134,7 +144,7 @@ class BNBuilder :
 		pats = self.simple_patterns
 		''' END POINTER FUNCTIONS '''
 		if isempty( self.h ) : self.init_simple_patterns()
-		hlst = self.hashedorder( lst_vars )
+		hlst = self.model.hashedarray( lst_vars )
 		if hlst in self.h : return self.h[ hlst ]
 		h = 0
 		lst = copy( lst_vars )
@@ -210,7 +220,7 @@ class BNBuilder :
 	''' ======================= STATIC KCYCLE HEURISTIC ======================= '''
 	def static_kcycle( self , lst_vars ) :
 		if len( self.h ) == 0 : init_multiple_patterns()
-		hlst = self.hashedorder( lst_vars )
+		hlst = self.model.hashedarray( lst_vars )
 		if hlst in self.h : return self.h[ hlst ]
 		h = 0
 		return h
@@ -232,6 +242,7 @@ class BNBuilder :
 		setnetwork( self.clean_graph() , train = False )
 		self.base_score = self.model.score()
 		print "Learning bayesian network from dataset %s" % self.data.source
+		best_order = None
 		for T in xrange( NUM_INITIAL_SOLUTIONS ) :
 			print " ============ INITIAL SOLUTION #%s ============" % (T+1)
 			write( " ============ INITIAL SOLUTION #%s ============\n" % (T+1) )
@@ -239,7 +250,6 @@ class BNBuilder :
 			init_order = self.initialize()
 			cur_order = copy( init_order )
 			print cur_order
-			best_order = None
 			num_iterations = NUM_GREEDY_ITERATIONS
 			for k in xrange( num_iterations ) :
 				#print " ====== Iteration #%s ====== " % (k+1)
@@ -547,35 +557,37 @@ if __name__ == "__main__" :
 		dataset_file , ommit_fields = sys.argv[ 1: ]
 		if ommit_fields == 'None' : ommit_fields = []
 		else : ommit_fields = [ f.strip() for f in ommit_fields.split( ',' ) ]
-		builder = BNBuilder( dataset_file , savefilter = True , discretize = True , ommit = ommit_fields )
+		builder = BNBuilder( dataset_file , savefilter = False , discretize = True , ommit = ommit_fields )
 		out_file = "%s%s_%%s.txt" % ( RESULTS_DIR , builder.dataset_name )
 		
-		'''
-		print "============== RUNNING WITH SIMPLE HEURISTIC =============="
-		builder.setSolver( 'a_star' , { 'heuristic' : 'simple' } )
-		builder.buildNetwork( outfilepath = out_file % 'simple' )
-		'''
+		if not os.path.isfile( out_file % 'simple' ) :
+			print "============== RUNNING WITH SIMPLE HEURISTIC =============="
+			builder.setSolver( 'a_star' , { 'heuristic' : 'simple' } )
+			builder.buildNetwork( outfilepath = out_file % 'simple' )
 
+		'''
 		print "=========== RUNNING WITH DYNAMIC KCYCLE HEURISTIC =========="
 		builder.setSolver( 'a_star' , { 'heuristic' : 'dynamic' , 'ksize' : 2 } )
 		builder.buildNetwork( outfilepath = out_file % 'dynamic' )
 
-		'''
 		print "=========== RUNNING WITH STATIC KCYCLE HEURISTIC =========="
 		builder.setSolver( 'a_star' , { 'heuristic' : 'static' } )
 		builder.buildNetwork( outfilepath = out_file % 'static' )
-
-		print "========== RUNNING WITH RANDOM PERMUTATION =========="
-		builder.setSolver( 'greedy_search' , { 'initial_solution' : 'random' } )
-		builder.buildNetwork( outfilepath = out_file % 'random' )
-	
-		print "========== RUNNING WITH DFS =========="
-		builder.setSolver( 'greedy_search' , { 'initial_solution' : 'unweighted' } )
-		builder.buildNetwork( outfilepath = out_file % 'unweighted' )
-		
-		print "========== RUNNING WITH FAS APPROXIMATION =========="
-		builder.setSolver( 'greedy_search' , { 'initial_solution' : 'weighted' } )
-		builder.buildNetwork( outfilepath = out_file % 'weighted' )
 		'''
+
+		if not os.path.isfile( out_file % 'random' ) :
+			print "========== RUNNING WITH RANDOM PERMUTATION =========="
+			builder.setSolver( 'greedy_search' , { 'initial_solution' : 'random' } )
+			builder.buildNetwork( outfilepath = out_file % 'random' )
+	
+		if not os.path.isfile( out_file % 'unweighted' ) :
+			print "========== RUNNING WITH DFS =========="
+			builder.setSolver( 'greedy_search' , { 'initial_solution' : 'unweighted' } )
+			builder.buildNetwork( outfilepath = out_file % 'unweighted' )
+		
+		if not os.path.isfile( out_file % 'weighted' ) :
+			print "========== RUNNING WITH FAS APPROXIMATION =========="
+			builder.setSolver( 'greedy_search' , { 'initial_solution' : 'weighted' } )
+			builder.buildNetwork( outfilepath = out_file % 'weighted' )
 	else :
 		print "Usage: pypy %s <csv_file> <ommit_fields> <results_file>" % sys.argv[ 0 ]
