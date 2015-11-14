@@ -62,7 +62,7 @@ def read_content( fpath , name ) :
 	print "TOTAL NUM SOLUTIONS = %s" % total_sols
 	print "NUM OF SOLUTIONS WITH MAX SCORE = %s" % num_sols
 	print "BEST SCORE = %s +/- %s (%s)" % ( avg_best_sc , std_best_sc , max_sc )
-	print "PERCENTAGE WITH MAX SCORE = %s" % perc_sols
+	#print "PERCENTAGE WITH MAX SCORE = %s" % perc_sols
 	print "INIT SCORE = %s +/- %s" % ( avg_init_sc , std_init_sc )
 	print "NUM ITERATIONS = %s +/- %s (%s)" % ( avg_iterations , stdev_iterations , max_iterations )
 	print "CPU TIME = %s +/- %s (%s)" % ( avg_time , stdev_time , max_time )
