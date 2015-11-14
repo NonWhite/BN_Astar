@@ -21,14 +21,14 @@ def convertPss( pssFile ) :
 				#print child
 			else :
 				sp = line.split()
-				score , parents = sp[ 0 ] , sp[ 1: ]
+				score , parents = float( sp[ 0 ] ) , sp[ 1: ]
 				bicscores[ child ].append( ( score , parents ) )
 				#print score , parents
 	
 	outfile = pssFile.replace( '.pss' , '_scores.txt' )
 	with open( outfile , 'w' ) as f :
 		for field in bicscores :
-			tmp = sorted( bicscores[ field ] )
+			tmp = sorted( bicscores[ field ] , reverse = True )
 			for ( sc , p ) in tmp :
 				f.write( "%s %s %s\n" % ( field , parse( p ) , sc ) )
 
