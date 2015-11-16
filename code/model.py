@@ -1,3 +1,4 @@
+import sys
 from copy import deepcopy as copy
 from utils import *
 from data import Data
@@ -264,3 +265,12 @@ class Model :
 		par = st.split( ',' )
 		if len( par ) == 1 and par[ 0 ] == '' : par = []
 		return par
+
+if __name__ == "__main__" :
+	if len( sys.argv ) == 4 :
+		datasetfile , field , parents = sys.argv[ 1: ]
+		data = Data( datasetfile , discretize = False )
+		model = Model( dataobj = data )
+		par = parents.replace( '_' , '' ).replace( ',' , ' ' ).split()
+		sc = model.bic_score( field , par )
+		print "%s %s %s" % ( field , parents , sc )
