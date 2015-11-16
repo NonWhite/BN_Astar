@@ -15,6 +15,7 @@ class Data :
 		self.ommitedfields = ommit
 		self.discretize = discretize
 		self.outfile = RESULTS_DIR + outfile
+		self.counters = {}
 		self.init()
 
 	def init( self ) :
@@ -156,11 +157,13 @@ class Data :
 	def getcount( self , fields ) :
 		F = self.hashed( fields )
 		if F not in self.counters : self.counters[ F ] = 0.0
-		query = "SELECT COUNT(*) FROM %s WHERE " % self.source
-		constraints = ' AND '.join( [ "%s = %s" % ( k , fields[ k ] ) for k in fields ] )
-		query += constraints
-		out = subprocess.check_output( [ 'python' , 'querycsv.py' , '-d,' , '-H' , query ] )
-		self.counters[ F ] = int( out )
+		count = 0
+		lst_vars = sorted( fields.keys() )
+		mask = ','.join( [ str( fields[ v ] ) for v in lst_vars ] )
+		for row in self.rows :
+			cur = ','.join( [ str( row[ v ] ) for v in lst_vars ] )
+			if mask == cur : count += 1
+		self.counters[ F ] = count
 		return self.counters[ F ]
 
 	def hashed( self , cond ) :
