@@ -1,4 +1,5 @@
 import os
+import sys
 import statistics
 import numpy as np
 from pylab import *
@@ -119,5 +120,6 @@ def makePlot( directory , dataname ) :
 
 if __name__ == "__main__":
 	directory = '../results/'
+	if len( sys.argv ) > 1 : datasets = sys.argv[ 1: ]
 	for d in datasets :
 		makePlot( directory , d )
