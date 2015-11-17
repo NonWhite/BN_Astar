@@ -1,4 +1,5 @@
 from utils import *
+from math import fabs
 from random import randint
 from copy import deepcopy as copy
 from data import Data
@@ -148,74 +149,100 @@ class BNBuilder :
 		if hlst in self.h : return self.h[ hlst ]
 		h = 0
 		lst = copy( lst_vars )
-		while not isempty( lst ) :
-			for ( df , s ) in pats : # Descending order
-				if set( s ).issubset( lst ) : # Pick max value
-					h += df
-					for f in s : lst.remove( f )
+		for ( value , s ) in pats : # Descending order
+			if set( s ).issubset( lst ) : # Pick max value
+				h += value
+				for f in s : lst.remove( f )
+			if isempty( lst ) : break
 		self.h[ hlst ] = h
 		return h
 	
-	# TODO
 	def init_simple_patterns( self ) :
 		''' START POINTER FUNCTIONS '''
 		K = self.kcycle_size
 		hashed = self.model.hashedarray
 		decode = self.model.decodearray
 		expand = self.expand
-		check_save = self.check_save
+		prune = self.check_save
+		allLayers = self.simple_patterns
 		''' END POINTER FUNCTIONS '''
-		patterns = dict( [ ( size , {} ) for size in xrange( 0 , K + 1 ) ] )
-		diff = {}
+		start = { 'cost' : 0.0 , 'diff' : 0.0 }
+		previousLayer = {}
+		currentLayer = {}
+		allLayers = {}
+		toPrune = []
 		shash = hashed( self.data.fields )
-		patterns[ 0 ][ shash ] = 0.0
-		diff[ shash ] = 0.0
-		saved = []
-		for l in xrange( 1 , K + 1 ) :
-			print patterns[ l - 1 ]
-			for s in patterns[ l - 1 ] :
-				u = decode( s )
-				expand( u , l , patterns )
-				check_save( u , diff , saved )
-				sub_lst = [ field for field in self.data.fields if field not in u ]
-				lhash = hashed( sub_lst )
-				self.simple_patterns[ lhash ] = patterns[ l - 1 ][ s ]
-		tmp = [ ( self.simple_patterns[ s ] , s ) for s in self.simple_patterns if s in saved ]
-		tmp = sorted( tmp , reverse = True )
-		self.simple_patterns = copy( tmp )
+		previousLayer[ shash ] = copy( start )
+		for i in range( K ) :
+			for k in previousLayer :
+				key = k
+				lst_vars = decode( key )
+				node = previousLayer[ key ]
+				expand( lst_vars , node , currentLayer , toPrune )
+
+				key = hashed( [ field for field in self.data.fields if field not in lst_vars ] )
+				allLayers[ key ] = copy( node )
+			previousLayer = copy( currentLayer )
+			currentLayer = {}
+		
+		for k in previousLayer :
+			key = k
+			lst_vars = decode( key )
+			node = previousLayer[ key ]
+
+			key = hashed( [ field for field in self.data.fields if field not in lst_vars ] )
+			allLayers[ key ] = copy( node )
+		prune( toPrune )
 	
-	# TODO: Check
-	def expand( self , lst_vars , layer , patterns ) :
+	def expand( self , lst_vars , node , currentLayer , toPrune ) :
 		''' START POINTER FUNCTIONS '''
 		hashed = self.model.hashedarray
 		best_score = lambda f , p : -self.model.bic_score( f , self.find_best_parents( f , p ) )
 		''' END POINTER FUNCTIONS '''
-		shash = hashed( lst_vars )
 		for field in lst_vars :
-			sub_lst = copy( lst_vars )
-			sub_lst.remove( field )
-			subh = hashed( sub_lst )
-			print "O = %s\tS = %s" % ( shash , subh )
-			score = patterns[ layer - 1 ][ shash ] + best_score( field , sub_lst )
-			if subh not in patterns[ layer ] or \
-				compare( score , patterns[ layer ][ subh ] ) < 0 :
-				patterns[ layer ][ subh ] = score
+			subnetwork = copy( lst_vars )
+			subnetwork.remove( field )
+			bestScore = best_score( field , subnetwork )
+		
+			options = copy( subnetwork )
+			newSubnetwork = copy( subnetwork )
+			newG = bestScore + node[ 'cost' ]
+			diff = node[ 'diff' ] + bestScore - best_score( field , options )
 
-	# TODO: Check
-	def check_save( self , lst_vars , diff , saved ) :
+			if fabs( node[ 'diff' ] - diff ) < PATTERN_EPSILON :
+				toPrune.append( newSubnetwork )
+
+			if hashed( newSubnetwork ) not in currentLayer :
+				oldNode = { 'cost' : newG , 'diff' : diff }
+				currentLayer[ hashed( newSubnetwork ) ] = copy( oldNode )
+				continue
+
+			oldNode = currentLayer[ hashed( newSubnetwork ) ]
+			if compare( newG , oldNode[ 'cost' ] ) < 0 :
+				oldNode[ 'cost' ] = newG
+
+			if compare( diff , oldNode[ 'diff' ] ) < 0 :
+				oldNode[ 'diff' ] = diff
+
+	def check_save( self , toPrune ) :
 		''' START POINTER FUNCTIONS '''
 		hashed = self.model.hashedarray
+		decode = self.model.decodearray
 		best_score = lambda f , p : self.model.bic_score( f , self.find_best_parents( f , p ) )
+		allLayers = self.simple_patterns
 		''' END POINTER FUNCTIONS '''
-		uhash = hashed( lst_vars )
-		diff[ uhash ] = self.simple_patterns[ uhash ] - self.simple( lst_vars )
-		for field in self.data.fields :
-			if field in lst_vars : continue
-			sup_lst = copy( lst_vars )
-			sup_lst.append( field )
-			shash = hashed( sup_lst )
-			if compare( diff[ uhash ] , diff[ shash ] ) > 0 :
-				saved.append( lst_vars )
+		print "FULL PATTERN DATABASE SIZE: %s" % len( allLayers )
+		for pat in toPrune :
+			pattern = [ field for field in self.data.fields if field not in pat ]
+			if len( pattern ) > 1 :
+				allLayers.pop( hashed( pattern ) , None )
+
+		tmp = [ ( allLayers[ k ][ 'diff' ] , allLayers[ k ][ 'cost' ] , decode( k ) ) for k in allLayers ]
+		tmp = sorted( allLayers , key = lambda p : p[ 0 ] , reverse = True ) # Sort descending by differential
+		allLayers = []
+		for ( diff , cost , pat ) in tmp :
+			allLayers.append( ( cost , pat ) )
+		print "PRUNED PATTERN DATABASE SIZE: %s" % len( allLayers )
 
 	''' ======================= STATIC KCYCLE HEURISTIC ======================= '''
 	def static_kcycle( self , lst_vars ) :
@@ -560,20 +587,22 @@ if __name__ == "__main__" :
 		builder = BNBuilder( dataset_file , savefilter = False , discretize = True , ommit = ommit_fields )
 		out_file = "%s%s_%%s.txt" % ( RESULTS_DIR , builder.dataset_name )
 		
+		'''
 		if not os.path.isfile( out_file % 'simple' ) :
 			print "============== RUNNING WITH SIMPLE HEURISTIC =============="
 			builder.setSolver( 'a_star' , { 'heuristic' : 'simple' } )
 			builder.buildNetwork( outfilepath = out_file % 'simple' )
+		'''
+
+		if not os.path.isfile( out_file % 'dynamic' ) :
+			print "=========== RUNNING WITH DYNAMIC KCYCLE HEURISTIC =========="
+			builder.setSolver( 'a_star' , { 'heuristic' : 'dynamic' , 'ksize' : 2 } )
+			builder.buildNetwork( outfilepath = out_file % 'dynamic' )
 
 		'''
-		print "=========== RUNNING WITH DYNAMIC KCYCLE HEURISTIC =========="
-		builder.setSolver( 'a_star' , { 'heuristic' : 'dynamic' , 'ksize' : 2 } )
-		builder.buildNetwork( outfilepath = out_file % 'dynamic' )
-
 		print "=========== RUNNING WITH STATIC KCYCLE HEURISTIC =========="
 		builder.setSolver( 'a_star' , { 'heuristic' : 'static' } )
 		builder.buildNetwork( outfilepath = out_file % 'static' )
-		'''
 
 		if not os.path.isfile( out_file % 'random' ) :
 			print "========== RUNNING WITH RANDOM PERMUTATION =========="
@@ -584,10 +613,10 @@ if __name__ == "__main__" :
 			print "========== RUNNING WITH DFS =========="
 			builder.setSolver( 'greedy_search' , { 'initial_solution' : 'unweighted' } )
 			builder.buildNetwork( outfilepath = out_file % 'unweighted' )
-		
 		if not os.path.isfile( out_file % 'weighted' ) :
 			print "========== RUNNING WITH FAS APPROXIMATION =========="
 			builder.setSolver( 'greedy_search' , { 'initial_solution' : 'weighted' } )
 			builder.buildNetwork( outfilepath = out_file % 'weighted' )
+		'''
 	else :
 		print "Usage: pypy %s <csv_file> <ommit_fields> <results_file>" % sys.argv[ 0 ]
