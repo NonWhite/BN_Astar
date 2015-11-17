@@ -1,5 +1,6 @@
 from random import randint
 import subprocess as sub
+import sys
 import os
 import itertools
 
@@ -24,6 +25,10 @@ MAX_NUM_PARENTS = 3
 NUM_RANDOM_RESTARTS = 3
 NUM_GREEDY_ITERATIONS = 100
 NUM_INITIAL_SOLUTIONS = 1000
+
+
+''' ======== PATTERN HEURISTICS ======== '''
+PATTERN_EPSILON = sys.float_info.epsilon
 
 def shuffle( arr ) :
 	new_arr = list( arr )
