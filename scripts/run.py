@@ -6,7 +6,7 @@ from subprocess import Popen
 DATASET_FILE = 'sets.txt'
 PROGRAM = 'python ../code/astar.py %s %s'
 CONF_LINES = 3
-TIMEOUT = 10800
+TIMEOUT = 9000
 
 def timeout_command( command , timeout ) :
 	start = time.time()
