@@ -1,5 +1,6 @@
 from utils import *
 from math import fabs
+from math import ceil
 from random import randint
 from copy import deepcopy as copy
 from data import Data
@@ -142,9 +143,9 @@ class BNBuilder :
 	def dynamic_kcycle( self , lst_vars ) :
 		''' START POINTER FUNCTIONS '''
 		isempty = lambda x : len( x ) == 0
-		pats = self.simple_patterns
+		pats = self.dynamic_patterns
 		''' END POINTER FUNCTIONS '''
-		if isempty( self.h ) : self.init_simple_patterns()
+		if isempty( self.h ) : self.init_dynamic_patterns()
 		hlst = self.model.hashedarray( lst_vars )
 		if hlst in self.h : return self.h[ hlst ]
 		h = 0
@@ -157,14 +158,15 @@ class BNBuilder :
 		self.h[ hlst ] = h
 		return h
 	
-	def init_simple_patterns( self ) :
+	def init_dynamic_patterns( self ) :
+		print "Initializing simple patterns with K = %s" % self.kcycle_size
 		''' START POINTER FUNCTIONS '''
 		K = self.kcycle_size
 		hashed = self.model.hashedarray
 		decode = self.model.decodearray
-		expand = self.expand
+		expand = self.expand_dynamic
 		prune = self.check_save
-		allLayers = self.simple_patterns
+		allLayers = self.dynamic_patterns
 		''' END POINTER FUNCTIONS '''
 		start = { 'cost' : 0.0 , 'diff' : 0.0 }
 		previousLayer = {}
@@ -174,6 +176,7 @@ class BNBuilder :
 		shash = hashed( self.data.fields )
 		previousLayer[ shash ] = copy( start )
 		for i in range( K ) :
+			#print previousLayer
 			for k in previousLayer :
 				key = k
 				lst_vars = decode( key )
@@ -185,16 +188,22 @@ class BNBuilder :
 			previousLayer = copy( currentLayer )
 			currentLayer = {}
 		
-		for k in previousLayer :
-			key = k
+		#print previousLayer
+		for s in previousLayer :
+			key = s
 			lst_vars = decode( key )
 			node = previousLayer[ key ]
 
 			key = hashed( [ field for field in self.data.fields if field not in lst_vars ] )
 			allLayers[ key ] = copy( node )
+		
+		self.dynamic_patterns = copy( allLayers )
+		#print self.dynamic_patterns
+		print "TO PRUNE = %s" % len( toPrune )
+		#for s in toPrune : print s
 		prune( toPrune )
 	
-	def expand( self , lst_vars , node , currentLayer , toPrune ) :
+	def expand_dynamic( self , lst_vars , node , currentLayer , toPrune ) :
 		''' START POINTER FUNCTIONS '''
 		hashed = self.model.hashedarray
 		best_score = lambda f , p : -self.model.bic_score( f , self.find_best_parents( f , p ) )
@@ -204,13 +213,16 @@ class BNBuilder :
 			subnetwork.remove( field )
 			bestScore = best_score( field , subnetwork )
 		
-			options = copy( subnetwork )
+			options = copy( self.data.fields )
+			options.remove( field )
 			newSubnetwork = copy( subnetwork )
 			newG = bestScore + node[ 'cost' ]
 			diff = node[ 'diff' ] + bestScore - best_score( field , options )
+			#print newSubnetwork , newG , diff
 
 			if fabs( node[ 'diff' ] - diff ) < PATTERN_EPSILON :
-				toPrune.append( newSubnetwork )
+				if newSubnetwork not in toPrune :
+					toPrune.append( newSubnetwork )
 
 			if hashed( newSubnetwork ) not in currentLayer :
 				oldNode = { 'cost' : newG , 'diff' : diff }
@@ -229,7 +241,7 @@ class BNBuilder :
 		hashed = self.model.hashedarray
 		decode = self.model.decodearray
 		best_score = lambda f , p : self.model.bic_score( f , self.find_best_parents( f , p ) )
-		allLayers = self.simple_patterns
+		allLayers = self.dynamic_patterns
 		''' END POINTER FUNCTIONS '''
 		print "FULL PATTERN DATABASE SIZE: %s" % len( allLayers )
 		for pat in toPrune :
@@ -238,22 +250,109 @@ class BNBuilder :
 				allLayers.pop( hashed( pattern ) , None )
 
 		tmp = [ ( allLayers[ k ][ 'diff' ] , allLayers[ k ][ 'cost' ] , decode( k ) ) for k in allLayers ]
-		tmp = sorted( allLayers , key = lambda p : p[ 0 ] , reverse = True ) # Sort descending by differential
+		# Sort descending by differential
+		tmp = sorted( tmp , key = lambda p : p[ 0 ] , reverse = True )
+
 		allLayers = []
 		for ( diff , cost , pat ) in tmp :
 			allLayers.append( ( cost , pat ) )
 		print "PRUNED PATTERN DATABASE SIZE: %s" % len( allLayers )
+		self.dynamic_patterns = copy( allLayers )
 
 	''' ======================= STATIC KCYCLE HEURISTIC ======================= '''
 	def static_kcycle( self , lst_vars ) :
-		if len( self.h ) == 0 : init_multiple_patterns()
+		''' START POINTER FUNCTIONS '''
+		isempty = lambda x : len( x ) == 0
+		pats = self.static_patterns
+		div = self.varsets
+		hashed = self.model.hashedarray
+		''' END POINTER FUNCTIONS '''
+		if isempty( self.h ) : self.init_static_patterns()
 		hlst = self.model.hashedarray( lst_vars )
 		if hlst in self.h : return self.h[ hlst ]
 		h = 0
+		remaining = [ field for field in self.data.fields if field not in lst_vars ]
+		for i in xrange( len( div ) ) :
+			vs = [ field for field in self.data.fields if field in remaining and field in div[ i ] ]
+			if vs == div[ i ] :
+				self.h[ hlst ] = pats[ i ][ hashed( vs ) ]
+				return pats[ i ][ hashed( vs ) ]
+			h += pats[ i ][ hashed( vs ) ]
+		self.h[ hlst ] = h
 		return h
 	
-	def init_multiple_patterns( self ) :
-		return 'gg'
+	def init_static_patterns( self ) :
+		''' START POINTER FUNCTIONS '''
+		pats = self.static_patterns
+		div = self.varsets
+		num_groups = self.kgroups
+		create_pdb = self.create_pattern_database
+		''' END POINTER FUNCTIONS '''
+		allvars = copy( self.data.fields )
+		numvars = len( allvars )
+		pattern_size = int( ceil( float( numvars ) / num_groups ) )
+		for pd_i in xrange( num_groups ) :
+			size = min( pattern_size , len( allvars ) )
+			div.append( allvars[ :size ] )
+			print div
+			for i in xrange( size ) : allvars.pop( 0 )
+			pdb = create_pdb( div[ pd_i ] )
+			pats.append( copy( pdb ) )
+		self.varsets = copy( div )
+		self.static_patterns = copy( pats )
+	
+	def create_pattern_database( self , varset ) :
+		''' START POINTER FUNCTIONS '''
+		hashed = self.model.hashedarray
+		decode = self.model.decodearray
+		expand = self.expand_static
+		''' END POINTER FUNCTIONS '''
+		pdb = {}
+		previousLayer = {}
+		previousLayer[ hashed( self.data.fields ) ] = 0.0
+
+		for l in xrange( len( varset ) ) :
+			currentLayer = {}
+			for k in previousLayer :
+				key = decode( k )
+				value = previousLayer[ k ]
+				
+				expand( key , value , varset , currentLayer )
+
+				pattern = [ field for field in varset if field not in key ]
+				pdb[ hashed( pattern ) ] = value
+			previousLayer = copy( currentLayer )
+
+		for k in previousLayer :
+			key = decode( k )
+			value = previousLayer[ k ]
+
+			pattern = [ field for field in varset if field not in key ]
+			pdb[ hashed( pattern ) ] = value
+		
+		return pdb
+	
+	def expand_static( self , subnetwork , cost , varset , currentLayer ) :
+		''' START POINTER FUNCTIONS '''
+		hashed = self.model.hashedarray
+		decode = self.model.decodearray
+		expand = self.expand_static
+		best_score = lambda x , p : -self.model.bic_score( x , self.find_best_parents( x , p ) )
+		''' END POINTER FUNCTIONS '''
+		for field in self.data.fields :
+			if field not in subnetwork : continue
+			if field not in varset : continue
+
+			options = copy( subnetwork )
+			options.remove( field )
+			newG = best_score( field , options ) + cost
+
+			newsubnetwork = copy( subnetwork )
+			newsubnetwork.remove( field )
+			hsub = hashed( newsubnetwork )
+
+			if hsub not in currentLayer or compare( newG , currentLayer[ hsub ] ) < 0 :
+				currentLayer[ hsub ] = newG
 
 	''' ======================================================================= '''
 	''' ======================= GREEDY SEARCH ALGORITHM ======================= '''
@@ -422,9 +521,12 @@ class BNBuilder :
 		elif heuri == 'dynamic' :
 			self.heuristic = self.dynamic_kcycle
 			self.kcycle_size = params[ 'ksize' ]
-			self.simple_patterns = {}
+			self.dynamic_patterns = {}
 		elif heuri == 'static' :
 			self.heuristic = self.static_kcycle
+			self.static_patterns = []
+			self.varsets = []
+			self.kgroups = params[ 'groups' ]
 
 	''' =========================== RANDOM SOLUTION APPROACH =========================== '''
 	def random_solution( self ) :
@@ -587,23 +689,37 @@ if __name__ == "__main__" :
 		builder = BNBuilder( dataset_file , savefilter = False , discretize = True , ommit = ommit_fields )
 		out_file = "%s%s_%%s.txt" % ( RESULTS_DIR , builder.dataset_name )
 		
-		'''
 		if not os.path.isfile( out_file % 'simple' ) :
 			print "============== RUNNING WITH SIMPLE HEURISTIC =============="
 			builder.setSolver( 'a_star' , { 'heuristic' : 'simple' } )
 			builder.buildNetwork( outfilepath = out_file % 'simple' )
-		'''
 
-		if not os.path.isfile( out_file % 'dynamic' ) :
-			print "=========== RUNNING WITH DYNAMIC KCYCLE HEURISTIC =========="
+		if not os.path.isfile( out_file % 'dynamic_k2' ) :
+			print "=========== RUNNING WITH DYNAMIC KCYCLE HEURISTIC (k=2) =========="
 			builder.setSolver( 'a_star' , { 'heuristic' : 'dynamic' , 'ksize' : 2 } )
-			builder.buildNetwork( outfilepath = out_file % 'dynamic' )
+			builder.buildNetwork( outfilepath = out_file % 'dynamic_k2' )
+
+		if not os.path.isfile( out_file % 'dynamic_k3' ) :
+			print "=========== RUNNING WITH DYNAMIC KCYCLE HEURISTIC (k=3) =========="
+			builder.setSolver( 'a_star' , { 'heuristic' : 'dynamic' , 'ksize' : 3 } )
+			builder.buildNetwork( outfilepath = out_file % 'dynamic_k3' )
+
+		if not os.path.isfile( out_file % 'dynamic_k4' ) :
+			print "=========== RUNNING WITH DYNAMIC KCYCLE HEURISTIC (k=4) =========="
+			builder.setSolver( 'a_star' , { 'heuristic' : 'dynamic' , 'ksize' : 4 } )
+			builder.buildNetwork( outfilepath = out_file % 'dynamic_k4' )
+
+		if not os.path.isfile( out_file % 'static_d2' ) :
+			print "=========== RUNNING WITH STATIC KCYCLE HEURISTIC (2pats) =========="
+			builder.setSolver( 'a_star' , { 'heuristic' : 'static' , 'groups' : 2 } )
+			builder.buildNetwork( outfilepath = out_file % 'static_d2' )
+		
+		if not os.path.isfile( out_file % 'static_d3' ) :
+			print "=========== RUNNING WITH STATIC KCYCLE HEURISTIC (3pats) =========="
+			builder.setSolver( 'a_star' , { 'heuristic' : 'static' , 'groups' : 3 } )
+			builder.buildNetwork( outfilepath = out_file % 'static_d3' )
 
 		'''
-		print "=========== RUNNING WITH STATIC KCYCLE HEURISTIC =========="
-		builder.setSolver( 'a_star' , { 'heuristic' : 'static' } )
-		builder.buildNetwork( outfilepath = out_file % 'static' )
-
 		if not os.path.isfile( out_file % 'random' ) :
 			print "========== RUNNING WITH RANDOM PERMUTATION =========="
 			builder.setSolver( 'greedy_search' , { 'initial_solution' : 'random' } )
