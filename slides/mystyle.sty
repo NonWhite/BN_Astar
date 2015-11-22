@@ -1,0 +1,50 @@
+\mode<presentation>
+{
+	\usetheme{Frankfurt}
+	\usetheme{Szeged}
+	\usecolortheme{crane}
+	\usefonttheme{default}  % or try serif, structurebold, ...
+	\setbeamertemplate{navigation symbols}{}
+	\setbeamertemplate{caption}[numbered]
+	\setbeamertemplate{footline}[frame number]
+}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{subfigure}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{comment}
+
+\setcounter{tocdepth}{1}
+
+\renewcommand{\P}{\mathbb{P}}
+
+% Setup TikZ
+\usepackage{tikz}
+\usetikzlibrary{arrows,shadows,calc}
+\tikzstyle{block}=[draw opacity=0.7,line width=1.4cm]
+
+\usepackage{listings}
+\lstset{
+ 	breaklines=true,
+	basicstyle=\scriptsize,
+	language=Python,
+	numbers=left,
+	numbersep=3pt,
+	stepnumber=1,
+	tabsize=2,
+	showstringspaces=false,
+	escapechar=|
+}
+
+\AtBeginSection[]{
+	\begin{frame}
+		\vfill
+		\centering
+		\begin{beamercolorbox}[sep=8pt,center,shadow=true,rounded=true]{title}
+		\usebeamerfont{title}\insertsection\par%
+		\end{beamercolorbox}
+		\vfill
+	\end{frame}
+}
