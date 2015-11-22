@@ -719,7 +719,6 @@ if __name__ == "__main__" :
 			builder.setSolver( 'a_star' , { 'heuristic' : 'static' , 'groups' : 3 } )
 			builder.buildNetwork( outfilepath = out_file % 'static_d3' )
 
-		'''
 		if not os.path.isfile( out_file % 'random' ) :
 			print "========== RUNNING WITH RANDOM PERMUTATION =========="
 			builder.setSolver( 'greedy_search' , { 'initial_solution' : 'random' } )
@@ -733,6 +732,5 @@ if __name__ == "__main__" :
 			print "========== RUNNING WITH FAS APPROXIMATION =========="
 			builder.setSolver( 'greedy_search' , { 'initial_solution' : 'weighted' } )
 			builder.buildNetwork( outfilepath = out_file % 'weighted' )
-		'''
 	else :
 		print "Usage: pypy %s <csv_file> <ommit_fields> <results_file>" % sys.argv[ 0 ]
