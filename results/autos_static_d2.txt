@@ -1,0 +1,32 @@
+ORDER = W,X,M,P,U,Y,K,C,S,Q,D,E,T,H,N,O,R,V,I,J,L,B,G,F,A
+SCORE = 1660.952428
+TIME = 406.32017
+EXPANDED = 71468
+GENERATED = 803133
+BEST NETWORK:
+SCORE = -1756.167913
+A: B,C,F,K
+B: C,F,G,H,R
+C: F,L,O,S,T
+D: E,Q,T
+E: H,U
+F: G,I,L
+G: J
+H: I,M,N,Q
+I: J,K,L,N
+J: M,P
+K: O,P,Q
+L: 
+M: P,Y
+N: O,R
+O: 
+P: R
+Q: S,U
+R: S,V,W
+S: T,V,W
+T: V,X
+U: W,Y
+V: 
+W: X
+X: 
+Y: 
