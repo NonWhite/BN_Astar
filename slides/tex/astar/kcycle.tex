@@ -1,0 +1,27 @@
+\subsection{K-Cycle Heuristic}
+
+\begin{frame}
+	\begin{columns}
+		\begin{column}{.48\textwidth}
+			\begin{figure}
+				\centering
+				\input{./graphs/motivating_example}
+			\end{figure}
+		\end{column}
+		\begin{column}{.48\textwidth}
+			Cycle between $X_1$ and $X_2$
+			\begin{itemize}
+				\item Delete arc $X_1 \rightarrow X_2$, $BestScore( X_2 , \{ X_3 , X_4 \} )$
+				\item Delete arc $X_2 \rightarrow X_1$, $BestScore( X_1 , \{ X_3 , X_4 \} )$
+			\end{itemize}
+			\pause
+			\vskip1em
+			What about cycle between $X_1$, $X_2$ and $X_4$?
+		\end{column}
+	\end{columns}
+	\pause
+	\vskip2em
+	\begin{center}
+		$h_{simple}$ is a special case with $K = 1$
+	\end{center}
+\end{frame}

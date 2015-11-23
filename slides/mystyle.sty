@@ -11,10 +11,14 @@
 
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}
+\usepackage{mathtools}
 \usepackage{subfigure}
 \usepackage{multirow}
 \usepackage{graphicx}
 \usepackage{comment}
+\usepackage{amsmath}
+\usepackage[noend]{algpseudocode}
+\usepackage[linesnumbered,ruled]{algorithm2e}
 
 \setcounter{tocdepth}{1}
 
@@ -22,8 +26,16 @@
 
 % Setup TikZ
 \usepackage{tikz}
-\usetikzlibrary{arrows,shadows,calc}
+\usetikzlibrary{arrows,shadows,calc,decorations}
 \tikzstyle{block}=[draw opacity=0.7,line width=1.4cm]
+\pgfdeclaredecoration{sl}{initial}{
+  \state{initial}[width=\pgfdecoratedpathlength-1sp]{
+     \pgfmoveto{\pgfpointorigin}
+  }
+  \state{final}{
+     \pgflineto{\pgfpointorigin}
+    }
+}
 
 \usepackage{listings}
 \lstset{

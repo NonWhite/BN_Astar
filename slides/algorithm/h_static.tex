@@ -1,0 +1,14 @@
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+
+\begin{algorithm}[H]
+	\scriptsize
+	\DontPrintSemicolon
+	$h \leftarrow 0$ \;
+	\For{each $V_i \in V$}{
+		$h \leftarrow h + PD^i( U \cap V_i )$
+	}
+	return $h$
+	\caption{$h_{static}( U )$}
+\end{algorithm}

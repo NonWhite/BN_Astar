@@ -1,32 +1,20 @@
 \subsection{Setup}
-	\begin{frame}{Configuration}
-		For each dataset considered:
+
+\begin{frame}{Configuration}
+	\begin{block}{Configuration}
+		For each dataset and heuristic:
 		\begin{itemize}
-			\item Limit parent set size to 3
-			\item Perform 1000 runs of Order-based Greedy Search
-			\item For each run at most 100 iterations ($K = 100$)
+			%\item Perform 1000 runs of Order-based Greedy Search
+			%\item For each run at most 100 iterations ($K = 100$)
+			%\item Find best parent sets by exhaustive search
 			\item Use BIC score
-			\item Find best parent sets by exhaustive search
+			\item Time limit: 2,5 hours
+			\item For $h_{dynamic}$ considers $K = 2,3,4$
+			\item For $h_{static}$ considers two and three groups
 		\end{itemize}
-	\end{frame}
-	\begin{frame}{Datasets}
-		\begin{table}
-			\centering
-			\begin{tabular}{ | l | c | c | c | }
-				\hline
-				Dataset & n (\#attributes) & N (\#instances) & Density of $\overline G$ \\ \hline
-				Census & 15 & 30168 & 2.85 \\ \hline
-				Letter & 17 & 20000 & 2.41 \\ \hline
-				Image & 20 & 2310 & 2.45 \\ \hline
-				Mushroom & 23 & 8124 & 2.91 \\ \hline
-				Sensors & 25 & 5456 & 3.00 \\ \hline
-				SteelPlates & 28 & 1941 & 2.18 \\ \hline
-				Epigenetics & 30 & 72228 & 1.87 \\ \hline
-				Alarm & 37 & 1000 & 1.98 \\ \hline
-				Spectf & 45 & 267 & 1.76 \\ \hline
-				LungCancer & 57 & 27 & 1.44 \\ \hline
-			\end{tabular}
-			\caption{Data sets characteristics}
-			\label{tab:datasets}
-		\end{table}
-	\end{frame}
+	\end{block}
+\end{frame}
+
+\begin{frame}
+	\input{./tables/datasets}
+\end{frame}

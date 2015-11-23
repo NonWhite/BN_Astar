@@ -1,0 +1,34 @@
+\subsection{Optimizations}
+
+\begin{frame}
+	% LIMIT NUMBER OF PARENTS
+	\begin{itemize}
+		\item Limit the maximum number of parents for each variable
+	\end{itemize}
+	\begin{block}{Theorem 1}
+		In an optimal Bayesian network based on the BIC scoring function, eachvariable has at most $d = \lfloor log( \frac{ 2N }{ log N } ) \rfloor$ parents, where $N$ is the number of instances.
+	\end{block}
+	\pause
+	% PRUNE NOT OPTIMUM PARENT SETS
+	\begin{itemize}
+		\item Prune non-optimal candidate parent sets
+	\end{itemize}
+	\begin{block}{Theorem 2}
+		Let $U$ and $S$ be two candidate parent sets for $X$ such that $U \subset S$, and ${sc}( X , U )$ is \alert{better} than ${sc}( X , S )$. Then $S$ is not the optimal parent set of $X$ for any candidate set.
+	\end{block}
+\end{frame}
+
+\begin{frame}
+	\input{./tables/datasets}
+\end{frame}
+
+\begin{frame}
+	\begin{figure}
+		\centering
+		\includegraphics[height=7cm]{images/num_scores}
+	\end{figure}
+\end{frame}
+
+\begin{frame}
+	\input{./tables/num_scores}
+\end{frame}

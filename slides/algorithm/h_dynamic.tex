@@ -1,0 +1,18 @@
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+
+\begin{algorithm}[H]
+	\scriptsize
+	\DontPrintSemicolon
+	$h \leftarrow 0$ \;
+	$R \leftarrow U$ \;
+	\For{each $S \in PD$}{
+		\If{$S \subset R$}{
+			$R \leftarrow R \setminus S$ \;
+			$h \leftarrow h + PD( S )$
+		}
+	}
+	return $h$
+	\caption{$h_{dynamic}( U )$}
+\end{algorithm}

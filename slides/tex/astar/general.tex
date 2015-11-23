@@ -1,0 +1,45 @@
+\subsection{Shortest Path Perspective}
+
+\begin{frame}
+	\begin{block}{Main idea of algorithm}
+		Evaluate nodes with function $f$ and expand to the one with lowest $f$ value.
+			\[ f( U ) = g( U ) + h( U ) \]
+	\end{block}
+	\begin{itemize}
+		\item States: sets of variables
+		\item Initial state: $\emptyset$
+		\item Final state: $\{ X_1 , X_2 , \ldots , X_n \}$
+		\item $g( U \cup \{ X \} ) = {sc}( U ) + BestScore( X , U )$
+			\[ BestScore( X , U ) = \min_{P \subset U} {sc}( X , P ) \]
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\input{./algorithm/astar}
+\end{frame}
+
+\begin{frame}
+	\begin{columns}
+		\begin{column}{.48\textwidth}
+		\begin{figure}
+			\centering
+			\includegraphics[height=5cm]{./images/order_graph}
+			\caption{Order graph for four variables}
+		\end{figure}
+		\end{column}
+		\pause
+		\begin{column}{.48\textwidth}
+			\begin{center}
+				\large
+				What about the \alert{heuristics}?
+			\end{center}
+			\pause
+			We will discuss only three heuristics:
+			\begin{itemize}
+				\item Simple heuristic
+				\item Dynamic K-Cycle
+				\item Static K-Cycle
+			\end{itemize}
+		\end{column}
+	\end{columns}
+\end{frame}

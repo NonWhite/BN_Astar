@@ -1,0 +1,20 @@
+\begin{tikzpicture}[ scale = 0.5 ]
+	\tikzset{ vertex/.style = { shape = circle , draw , minimum size = 1.5em } }
+	\tikzset{ edge/.style = { ->,> = latex' , shorten >=2mm, shorten <=2mm } }
+	\tikzset{ parallel arrow/.style={->, > = latex' , shorten >=2mm, shorten <=2mm, decoration={sl,raise=1mm},decorate}}
+	% vertices
+	\node[ vertex ] (A) at  ( 0 , 6 ) { ${X_1}$ } ;
+	\node[ vertex ] (B) at  ( 6 , 6 ) { ${X_2}$ } ;
+	\node[ vertex ] (C) at  ( 0 , 0 ) { ${X_3}$ } ;
+	\node[ vertex ] (D) at  ( 6 , 0 ) { ${X_4}$ } ;
+
+	%edges
+	\draw[ parallel arrow ] (A) to (B) ;
+	\draw[ parallel arrow ] (B) to (A) ;
+	\draw[ edge ] (B) to (C) ;
+	\draw[ parallel arrow ] (B) to (D) ;
+	\draw[ edge ] (C) to (A) ;
+	\draw[ edge ] (C) to (D) ;
+	\draw[ edge ] (D) to (A) ;
+	\draw[ parallel arrow ] (D) to (B) ;
+\end{tikzpicture}

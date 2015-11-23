@@ -1,11 +1,24 @@
 \subsection{Problems}
-	\begin{frame}
-		\begin{block}{Common approach for initial solutions}
-			\begin{itemize}
-				\item Random generation of a variable order
-				\item Too many possible orders: $n!$
-				\item Slow convergence
-				\item Poor local maxima
-			\end{itemize}
-		\end{block}
-	\end{frame}
+
+\begin{frame}
+	\begin{center}
+		\large
+		Score-based structure learning is an \alert{NP-Hard} problem
+	\end{center}
+	\pause
+	\vskip2em
+	Suppose we have a dataset with $n$ attributes
+	\vskip1em
+	\begin{itemize}
+		\item Number of scores: $n 2^{ n - 1 }$
+		\begin{itemize}
+			\item e.g. For $n = 20$, there are 10 million of scores
+		\end{itemize}
+		\vskip1em
+		\pause
+		\item Number of possible DAGs: $O( n 2^{ n ( n - 1 ) } )$
+		\begin{itemize}
+			\item e.g. For $n = 5$, there are 5 million DAGs
+		\end{itemize}
+	\end{itemize}
+\end{frame}

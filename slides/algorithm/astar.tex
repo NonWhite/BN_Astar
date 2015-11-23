@@ -1,0 +1,32 @@
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+
+\begin{algorithm}[H]
+	\scriptsize
+	\DontPrintSemicolon
+	\SetKwInOut{Input}{Input}
+	\SetKwInOut{Output}{Output}
+	\Input{Sparse parent graphs containing ${BestScore}( X , U )$}
+	\Output{an optimal Bayesian network $G$}
+	$start \leftarrow$ $\emptyset$ \;
+	${sc}( start ) \leftarrow 0$ \;
+	$push( pqueue , start , h( start ) )$ \;
+	\While{$not\_empty( pqueue )$}{
+		$U \leftarrow pop( pqueue )$ \;
+		\If{$U$ is goal}{\alert{return ${network}( U )$}}
+		\For{each $X \in V \setminus U$}{
+			\alert{$g \leftarrow {sc}( U ) + {BestScore}( X , U )$} \;
+			\If{pqueue not contains $U \cup \{X\}$ or $g < {sc}( U \cup \{X\} )$}{
+				${sc}( U \cup \{X\} ) = g$ \;
+				\uIf{pqueue contains $U \cup \{X\}$}{
+					${update}( pqueue , U \cup \{X\} , g + h( U \cup \{X\} ) )$
+				}
+				\Else{
+					${push}( pqueue , U \cup \{X\} , g + h( U \cup \{X\} ) )$
+				}
+			}
+		}
+	}
+	\caption{$A^*$ Search Algorithm}
+\end{algorithm}

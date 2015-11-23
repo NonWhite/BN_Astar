@@ -5,6 +5,12 @@
 		Given dataset $D$, select $G$ that maximizes \alert{decomposable} score function:
 			\[ {sc}( G , D ) = LL( D \mid G ) + \psi( N ) \times | G | \]
 			\[ {sc}( G ) = \sum_i {sc}( X_i , {Pa}( X_i ) ) \]
+		\vskip1em
+		Most common scores are:
+		\begin{itemize}
+			\item BIC: $\psi( N ) = {log}( N ) / 2$
+			\item AIC: $\psi( N ) = 1$
+		\end{itemize}
 	\end{block}
 \end{frame}
 	
