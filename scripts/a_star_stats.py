@@ -43,6 +43,8 @@ class AStarStatsCalculator( StatsCalculator ) :
 
 	def calculate_stats( self ) :
 		self.data[ 'timeout' ] = len( self.data ) < 2
+		if self.data[ 'timeout' ] : return
+		self.data[ 'ratio' ] = self.data[ 'generated_nodes' ] / self.data[ 'expanded_nodes' ]
 
 	def print_stats( self ) :
 		print " ====== %s ====== " % self.data[ 'name' ].upper()
@@ -53,6 +55,7 @@ class AStarStatsCalculator( StatsCalculator ) :
 			print "CPU TIME = %.2f" % self.data[ 'time' ]
 			print "EXPANDED NODES = %d" % self.data[ 'expanded_nodes' ]
 			print "GENERATED NODES = %d" % self.data[ 'generated_nodes' ]
+			print "RATIO = %d" % self.data[ 'ratio' ]
 	
 	def read_content( self , filepath ) :
 		data = { 'name' : basename( filepath ) }
